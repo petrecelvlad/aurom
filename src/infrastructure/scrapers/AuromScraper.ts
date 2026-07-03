@@ -1,4 +1,3 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 /**
  * @propolis
@@ -6,7 +5,7 @@ import * as cheerio from 'cheerio';
  *   "role": "ADAPTER",
  *   "constraints": [
  *     "Implements the IScraperStrategy port",
- *     "Dependencies: axios, cheerio, WeightConverter, PriceParser"
+ *     "Dependencies: cheerio, WeightConverter, PriceParser, fetchWithTimeout (no axios — Workers-native fetch)"
  *   ],
  *   "agent_instructions": "This is the Aurom Investment dealer website scraper adapter. Paginates the WooCommerce shop up to 10 pages. Ensure you handle missing properties gracefully and log errors clearly."
  * }
@@ -16,6 +15,7 @@ import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
 import { PriceParser } from '../../domain/PriceParser';
+import { fetchWithTimeout } from './httpClient';
 
 export class AuromScraper implements IScraperStrategy {
   get providerName(): string {
@@ -38,8 +38,17 @@ export class AuromScraper implements IScraperStrategy {
       
       try {
         console.log(`Scraping Aurom page ${page}: ${url}`);
-        const response = await axios.get(url, { headers, timeout: 15000 });
-        const $ = cheerio.load(response.data);
+        const response = await fetchWithTimeout(url, { headers });
+        if (response.status === 404) {
+          console.log(`Aurom page ${page} returned 404. Stopping pagination.`);
+          break;
+        }
+        if (!response.ok) {
+          console.error(`Error scraping Aurom page ${page}: HTTP ${response.status}`);
+          break;
+        }
+        const html = await response.text();
+        const $ = cheerio.load(html);
 
         const productElements = $('li.product');
         if (productElements.length === 0) {
@@ -137,12 +146,8 @@ export class AuromScraper implements IScraperStrategy {
         }
 
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
-          console.log(`Aurom page ${page} returned 404. Stopping pagination.`);
-        } else {
-          const message = error instanceof Error ? error.message : String(error);
-          console.error(`Error scraping Aurom page ${page}:`, message);
-        }
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Error scraping Aurom page ${page}:`, message);
         break; // Stop pagination on error to be safe
       }
     }

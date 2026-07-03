@@ -1,4 +1,3 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 /**
  * @propolis
@@ -6,7 +5,7 @@ import * as cheerio from 'cheerio';
  *   "role": "ADAPTER",
  *   "constraints": [
  *     "Implements the IScraperStrategy port",
- *     "Dependencies: axios, cheerio, WeightConverter, PriceParser",
+ *     "Dependencies: cheerio, WeightConverter, PriceParser, fetchWithTimeout (no axios — Workers-native fetch)",
  *     "Fragile label/price DOM matching — see PROVIDER_SCRAPING_SPECS.md Neogold Autopsy"
  *   ],
  *   "agent_instructions": "This is the Neogold dealer website scraper adapter. Iterates 5 WooCommerce category pages. Ensure you handle missing properties gracefully and log errors clearly."
@@ -17,6 +16,7 @@ import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
 import { PriceParser } from '../../domain/PriceParser';
+import { fetchWithTimeout } from './httpClient';
 
 export class NeogoldScraper implements IScraperStrategy {
   get providerName(): string {
@@ -50,8 +50,17 @@ export class NeogoldScraper implements IScraperStrategy {
     for (const url of categories) {
       try {
         console.log(`Scraping Neogold category: ${url}`);
-        const response = await axios.get(url, { headers, timeout: 15000 });
-        const $ = cheerio.load(response.data);
+        const response = await fetchWithTimeout(url, { headers });
+        if (response.status === 404) {
+          console.warn(`Category not found (404) for Neogold: ${url}`);
+          continue;
+        }
+        if (!response.ok) {
+          console.error(`Error scraping Neogold category ${url}: HTTP ${response.status}`);
+          continue;
+        }
+        const html = await response.text();
+        const $ = cheerio.load(html);
 
         // Target the main product grid elements from the Wolmart theme layout
         let productElements = $('div.product, .product-wrap, .product-body');
@@ -162,12 +171,8 @@ export class NeogoldScraper implements IScraperStrategy {
         });
 
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
-          console.warn(`Category not found (404) for Neogold: ${url}`);
-        } else {
-          const message = error instanceof Error ? error.message : String(error);
-          console.error(`Error scraping Neogold category ${url}:`, message);
-        }
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Error scraping Neogold category ${url}:`, message);
       }
     }
 

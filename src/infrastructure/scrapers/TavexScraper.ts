@@ -4,17 +4,17 @@
  *   "role": "ADAPTER",
  *   "constraints": [
  *     "Implements the IScraperStrategy port",
- *     "Dependencies: axios, cheerio, WeightConverter"
+ *     "Dependencies: cheerio, WeightConverter, fetchWithTimeout (no axios — Workers-native fetch)"
  *   ],
  *   "agent_instructions": "This is the Tavex dealer website scraper adapter. Scrapes gold and silver category pages. Parses standard product formats using cheerio selectors. Ensure you handle missing properties gracefully and log errors clearly."
  * }
  */
 
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
+import { fetchWithTimeout } from './httpClient';
 
 export class TavexScraper implements IScraperStrategy {
   get providerName(): string {
@@ -35,8 +35,13 @@ export class TavexScraper implements IScraperStrategy {
     for (const url of urls) {
       try {
         console.log(`Scraping Tavex category page: ${url}`);
-        const response = await axios.get(url, { headers, timeout: 15000 });
-        const $ = cheerio.load(response.data);
+        const response = await fetchWithTimeout(url, { headers });
+        if (!response.ok) {
+          console.error(`Error scraping Tavex url ${url}: HTTP ${response.status}`);
+          continue;
+        }
+        const html = await response.text();
+        const $ = cheerio.load(html);
         
         const schemaItems = new Map<string, any>();
         $('script[type="application/ld+json"]').each((_, e) => {

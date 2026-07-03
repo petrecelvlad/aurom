@@ -4,21 +4,17 @@
  *   "role": "ADAPTER",
  *   "constraints": [
  *     "Implements the IScraperStrategy port",
- *     "Sources from a daily PDF (Cotatii_Aur.pdf), not HTML — parses via pdf-parse and fixed regex per product",
- *     "Cached for 60 minutes upstream in server.ts, not 5, since the source PDF only updates daily"
+ *     "Sources from a daily PDF (Cotatii_Aur.pdf), not HTML — parses via unpdf (Workers-compatible, PDF.js-based) and fixed regex per product",
+ *     "Regexes tolerate whitespace between labels and numbers (\\s*) — unpdf's text extraction spaces tokens differently than pdf-parse did"
  *   ],
  *   "agent_instructions": "This is the BCR bank gold-rate scraper adapter. If BCR changes the PDF layout, the fixed regex table for lingouri/monede will silently stop matching and return 0 products — check text extraction manually before assuming a code bug."
  * }
  */
 
-import axios from 'axios';
+import { extractText, getDocumentProxy } from 'unpdf';
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
-
-// We dynamically require pdf-parse to avoid issues in the frontend bundle if it's imported
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
+import { fetchWithTimeout } from './httpClient';
 
 export class BCRScraper implements IScraperStrategy {
   get providerName(): string {
@@ -31,11 +27,16 @@ export class BCRScraper implements IScraperStrategy {
 
     try {
       console.log(`Scraping BCR PDF: ${url}`);
-      const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000 });
-      const data = await pdf(response.data);
-      const text = data.text;
-      
-      const lingouriRe = /(\d+)g bar.*?Good Delivery\1([\d,]+)/g;
+      const response = await fetchWithTimeout(url);
+      if (!response.ok) {
+        console.error(`Error scraping BCR: HTTP ${response.status}`);
+        return results;
+      }
+      const buffer = await response.arrayBuffer();
+      const pdfDoc = await getDocumentProxy(new Uint8Array(buffer));
+      const { text } = await extractText(pdfDoc, { mergePages: true });
+
+      const lingouriRe = /(\d+)g bar.*?Good Delivery\s*\1\s*([\d,]+)/g;
       let match;
       while ((match = lingouriRe.exec(text)) !== null) {
         const weight_g = parseFloat(match[1]);
@@ -68,12 +69,12 @@ export class BCRScraper implements IScraperStrategy {
       }
 
       const monedeMap = [
-        { regex: /1\/10 Uncie.*?mm3\.121([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1/10 oz', weight: 3.11, sku: 'bcr-moneda-1-10oz' },
-        { regex: /1\/4 Uncie.*?mm7\.776([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1/4 oz', weight: 7.78, sku: 'bcr-moneda-1-4oz' },
-        { regex: /1\/2 Uncie.*?mm15\.552([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1/2 oz', weight: 15.55, sku: 'bcr-moneda-1-2oz' },
-        { regex: /1 Uncie.*?mm31\.103([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1 oz', weight: 31.103, sku: 'bcr-moneda-1oz' },
-        { regex: /Ducat Aur 1Au.*?mm3\.49([\d,]+)/, name: 'Moneda aur Ducat 1', weight: 3.49, sku: 'bcr-ducat-1' },
-        { regex: /Ducat Aur 4Au.*?mm13\.96([\d,]+)/, name: 'Moneda aur Ducat 4', weight: 13.96, sku: 'bcr-ducat-4' },
+        { regex: /1\/10 Uncie.*?mm\s*3\.121\s*([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1/10 oz', weight: 3.11, sku: 'bcr-moneda-1-10oz' },
+        { regex: /1\/4 Uncie.*?mm\s*7\.776\s*([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1/4 oz', weight: 7.78, sku: 'bcr-moneda-1-4oz' },
+        { regex: /1\/2 Uncie.*?mm\s*15\.552\s*([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1/2 oz', weight: 15.55, sku: 'bcr-moneda-1-2oz' },
+        { regex: /1 Uncie.*?mm\s*31\.103\s*([\d,]+)/, name: 'Moneda aur Vienna Philharmonic 1 oz', weight: 31.103, sku: 'bcr-moneda-1oz' },
+        { regex: /Ducat Aur 1\s*Au.*?mm\s*3\.49\s*([\d,]+)/, name: 'Moneda aur Ducat 1', weight: 3.49, sku: 'bcr-ducat-1' },
+        { regex: /Ducat Aur 4\s*Au.*?mm\s*13\.96\s*([\d,]+)/, name: 'Moneda aur Ducat 4', weight: 13.96, sku: 'bcr-ducat-4' },
       ];
 
       for (const m of monedeMap) {

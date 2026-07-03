@@ -1,11 +1,10 @@
-import axios from 'axios';
 /**
  * @propolis
  * {
  *   "role": "ADAPTER",
  *   "constraints": [
  *     "Implements the IScraperStrategy port",
- *     "Dependencies: axios, WeightConverter",
+ *     "Dependencies: WeightConverter, fetchWithTimeout (no axios — Workers-native fetch)",
  *     "Sources from the unauthenticated Shopify /products.json endpoint, not HTML"
  *   ],
  *   "agent_instructions": "This is the Avangard Gold dealer scraper adapter. Iterates products and their variants from the Shopify JSON API. Ensure you handle missing properties gracefully and log errors clearly."
@@ -15,6 +14,7 @@ import axios from 'axios';
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
+import { fetchWithTimeout } from './httpClient';
 
 export class AvangardScraper implements IScraperStrategy {
   get providerName(): string {
@@ -31,14 +31,19 @@ export class AvangardScraper implements IScraperStrategy {
 
     try {
       console.log(`Scraping Avangard Gold via Shopify JSON API: ${url}`);
-      const response = await axios.get(url, { headers, timeout: 15000 });
-      
-      if (!response.data || !Array.isArray(response.data.products)) {
+      const response = await fetchWithTimeout(url, { headers });
+      if (!response.ok) {
+        console.error(`Error scraping Avangard Gold: HTTP ${response.status}`);
+        return [];
+      }
+      const data = await response.json() as { products?: unknown };
+
+      if (!data || !Array.isArray(data.products)) {
         console.warn('Avangard Gold API response format is invalid or empty');
         return [];
       }
 
-      const products = response.data.products;
+      const products = data.products as any[];
 
       for (const product of products) {
         const tagsStr = Array.isArray(product.tags) ? product.tags.join(' ') : String(product.tags || '');

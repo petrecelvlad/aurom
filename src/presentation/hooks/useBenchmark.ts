@@ -8,7 +8,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 
 export interface BenchmarkData {
   date: string;
@@ -26,8 +25,12 @@ export function useBenchmark() {
     async function fetchBenchmark() {
       try {
         setIsLoading(true);
-        const response = await axios.get('/api/benchmark/gold');
-        setBenchmark(response.data);
+        const response = await fetch('/api/benchmark/gold');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch benchmark: HTTP ${response.status}`);
+        }
+        const data = (await response.json()) as BenchmarkData;
+        setBenchmark(data);
       } catch (err) {
         console.error('Error fetching benchmark:', err);
         const message = err instanceof Error ? err.message : 'Error fetching benchmark';
