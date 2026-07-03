@@ -30,11 +30,10 @@ The separation matters. Agent docs change when workflows improve. Project docs c
 ## Why Order Matters
 
 This framework applies the Single Responsibility Principle to documentation. Each document has one job:
-*   `AGENTS.md` / `AGENT.md` gives you your operational rules and constraints.
+*   `AGENT.md` gives you your identity, operational rules, and task workflow.
 *   `PHILOSOPHY.md` gives you the framework's purpose and principles.
-*   Your companion file (`GEMINI.md`) gives you your provider-specific protocols.
 *   `CODING_COMPANION.md` gives you your coding discipline.
-*   `OVERVIEW.md` gives you the system's architecture.
+*   `OVERVIEW.md` gives you the system's architecture (and build/run commands).
 *   Personas give you your mode of thinking.
 
 Reading them out of order means reading a document that references concepts you haven't encountered yet. Reading them in order means each document clicks into place.
@@ -49,10 +48,9 @@ Reading them out of order means reading a document that references concepts you 
 
 | Step | Document | What I gain |
 |---|---|---|
-| 1 | `AGENTS.md` | My constitution: phases, guardrails, standing rules |
+| 1 | [AGENT.md](../../../AGENT.md) | My constitution: identity, phases, guardrails, standing rules |
 | 2 | [PHILOSOPHY.md](../../PHILOSOPHY.md) | Framework purpose, principles, and evolution model |
-| 3 | [GEMINI.md](../../GEMINI.md) | My onboarding sequence, session protocol, memory rules |
-| 4 | [CODING_COMPANION.md](./CODING_COMPANION.md) | My coding discipline: naming, functions, errors, types |
+| 3 | [CODING_COMPANION.md](./CODING_COMPANION.md) | My coding discipline: naming, functions, errors, types |
 
 After Phase 1, I can operate safely on any task. I know the rules, the constraints, and how to write code that meets the project's standards.
 
@@ -64,9 +62,9 @@ After Phase 1, I can operate safely on any task. I know the rules, the constrain
 
 | Step | Document | What I gain |
 |---|---|---|
-| 5 | [OVERVIEW.md](../../project/architecture/OVERVIEW.md) | System design, key decisions, component structure |
-| 6 | [SYSTEM_DESIGN.md](../../project/architecture/SYSTEM_DESIGN.md) | Deep-dive into precious metals domain models and services |
-| 7 | [HEXAGONAL.md](../../project/architecture/HEXAGONAL.md) | Explanation of the clean Port & Adapter separation |
+| 4 | [OVERVIEW.md](../../project/architecture/OVERVIEW.md) | System design, key decisions, component structure, build/run commands |
+| 5 | [SYSTEM_DESIGN.md](../../project/architecture/SYSTEM_DESIGN.md) | Deep-dive into precious metals domain models and services |
+| 6 | [HEXAGONAL.md](../../project/architecture/HEXAGONAL.md) | Explanation of the clean Port & Adapter separation |
 
 After Phase 2, I understand what was built and why. I can assess blast radius before making changes and navigate the codebase with context.
 
@@ -78,7 +76,7 @@ After Phase 2, I understand what was built and why. I can assess blast radius be
 
 | Step | Document | What I gain |
 |---|---|---|
-| 8 | [PRECIOUS_METALS_EXPERT.md](../personas/PRECIOUS_METALS_EXPERT.md) | Adopt the gold & silver aggregator domain expert persona |
+| 7 | [PRECIOUS_METALS_EXPERT.md](../personas/PRECIOUS_METALS_EXPERT.md) | Adopt the gold & silver aggregator domain expert persona |
 
 After Phase 3, I'm fully onboarded. I have rules, territory, and identity. I can begin work.
 

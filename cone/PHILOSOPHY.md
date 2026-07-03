@@ -37,8 +37,8 @@ Every document has exactly one job:
 *   Keep files small, modular, and tightly focused to respect agent context windows and prevent info-slop.
 
 ### 3. Phased Onboarding
-Agents do not need to "read everything" upfront. They should follow a dependency-ordered sequence (defined in the `GEMINI.md` or `AGENTS.md` Companion):
-1.  **Orient**: Understand who we are, what the project is, and how we operate.
+Agents do not need to "read everything" upfront. They should follow the dependency-ordered sequence defined in [AGENT.md](../AGENT.md) and [START_HERE.md](agent/onboarding/START_HERE.md):
+1.  **Orient**: Understand who we are, what the project is, and how we operate. Defined in [AGENT.md](../AGENT.md).
 2.  **Learn**: Read the architectural guardrails and domain rules.
 3.  **Execute**: Consult the active session, roadmap, or task instructions.
 

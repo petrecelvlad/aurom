@@ -25,11 +25,22 @@ This project is a real-time, full-stack **Precious Metals Aggregator** in Romani
 *   Uses client-side caching to maintain responsiveness and avoid hitting scraper APIs repeatedly.
 
 ### 2. The Backend (Node.js/Express Server)
-*   Serves client assets and hosts the main API endpoint: `GET /api/products`.
-*   Fetches live benchmark rates for gold and silver from the National Bank of Romania (BNR) XML API.
-*   Aggregates products from multiple scraping adapter modules concurrently.
+*   Serves client assets and hosts two API endpoints, both defined in `server.ts`:
+    *   `GET /api/scrape/all` — aggregates and returns products from every registered scraper.
+    *   `GET /api/benchmark/gold` — fetches the live BNR gold rate from `bnr.ro/nbrfxrates.xml`.
+*   `server.ts` is the Composition Root: it instantiates each scraper, wraps it in `CachingScraperDecorator`, and registers it with `ProductAggregatorService`.
+*   State on the client is plain React hooks (`useProducts`, `useBenchmark`) polling these endpoints — there is no client-side store (Zustand, Redux, etc.).
 
 ### 3. The Scraping Adapters (Cheerio Scrapers)
 *   Coded as adapters implementing the `IScraperStrategy` port interface.
 *   Scrape major dealers' public e-commerce sites to parse prices, titles, image URLs, and availability states.
 *   Fail gracefully: if a single dealer scraper breaks, the aggregator continues serving data from the other functional dealers.
+
+---
+
+## 🛠️ Build & Run Commands
+
+*   `npm run dev` — start the live development server (`tsx server.ts`, Vite middleware mode).
+*   `npm run build` — build client assets (Vite) and bundle the server (`esbuild` → `dist/server.cjs`).
+*   `npm start` — run the production bundle.
+*   `npm run lint` — type-check only (`tsc --noEmit`).

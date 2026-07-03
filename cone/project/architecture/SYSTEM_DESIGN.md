@@ -34,16 +34,13 @@ The application is structured into concentric layers. The innermost layer contai
 
 These are the hard, technical laws of our codebase. Violation is not permitted.
 
-### I. Thou Shalt Have a Single Source of Truth (SSOT).
-All application state on the client side must be centralized in a dedicated store (e.g., Zustand or React Context). Data flows one way: from the store to the UI. We never mutate state directly within UI components.
+### I. Thou Shalt Honor the Dependency Rule.
+Our architecture is strictly layered, per the real directory structure under `/src/` (see [HEXAGONAL.md](./HEXAGONAL.md)). A layer can ONLY depend on layers below it. The flow is always:
+`domain/` -> `application/` -> `infrastructure/` -> `presentation/`
+*A file in `domain/` must never import a file from `infrastructure/` or `presentation/`.*
 
-### II. Thou Shalt Honor the Dependency Rule.
-Our architecture is strictly layered. A layer can ONLY depend on layers below it. The flow is always:
-`Types` -> `Core Domain Logic` -> `Service/Adapter Logic` -> `State Management` -> `UI Logic Hooks` -> `UI Components`
-*A file in `core/` must never import a file from `components/` or `services/`.*
+### II. Thou Shalt Decouple Thy "Engine" from Thy "Dashboard".
+Core scraping logic and data aggregation must be pure and independent of the React UI and Express server. The core logic (`ProductAggregatorService` + scrapers) should be executable in a standalone Node.js script. The React UI is simply one "view" of the engine's output, and the Express server (`server.ts`) is merely an HTTP adapter.
 
-### III. Thou Shalt Decouple Thy "Engine" from Thy "Dashboard".
-Core scraping logic and data aggregation must be pure and independent of the React UI and Express server. The core logic should be executable in a standalone Node.js script. The React UI is simply one "view" of the engine's state, and the Express server is merely an HTTP adapter.
-
-### IV. Thou Shalt Manage Side Effects Predictably.
-Complex interactions between components must not create feedback loops. State changes must trigger predictable, unidirectional re-renders. A component should not cause a side effect that forces its own parent to re-render it in an infinite loop. Asynchronous operations (like polling the Express API) must be managed centrally (e.g., via a dedicated hook or state thunk).
+### III. Thou Shalt Manage State Simply Until It Hurts.
+There is no client-side store — state lives in plain React hooks (`useProducts`, `useBenchmark`) that poll the Express API directly. Do not introduce a global store (Zustand, Redux, Context-as-store) speculatively; only do so if prop-drilling or re-render cost becomes a demonstrated problem.

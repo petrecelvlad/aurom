@@ -36,3 +36,33 @@ All scrapers must output data that strictly adheres to the `StandardizedProduct`
 3.  **Metal Classification:**
     *   The `metal` field must be determined by inspecting both the product name and URL against standardized keyword rules defined in `detectMetal`.
     *   Any product that cannot be classified as one of the four core metals MUST be dropped/ignored.
+
+---
+
+## Field Extraction Guidelines
+
+When building a parser for a new provider, locate the HTML selectors, JSON-LD schemas, or API endpoints needed to populate each field.
+
+*   **`sku`** — Often in data attributes (`data-id`, `data-sku`), JSON-LD product schema, or hidden input fields.
+*   **`name`** — Usually the `<h1>` on the product page or the title in the product grid card.
+*   **`url`** — The `href` of the product card link. If relative, prepend the provider's base domain.
+*   **`weight_g`** — Check `application/ld+json` script tags first, then product spec tables, then regex on the title if formatting is consistent (e.g. `"1 oz"`, `"100g"`).
+*   **`stock_status`** — Map native-language terms to the standard three values: `"În stoc"` / `"Available"` / `"In stoc"` → `In Stock`; `"Stoc epuizat"` / `"Sold out"` → `Out of Stock`; anything else → `Unknown`.
+*   **`buy_price_ron` / `sell_price_ron`** — Check `data-price` attributes, API responses, JSON-LD, or parse price element text (strip currency symbols, handle comma/dot formatting).
+
+### Example Output
+
+```json
+{
+  "provider": "Tavex",
+  "sku": "118",
+  "name": "1 oz Austrian Philharmonic Gold Coin",
+  "url": "https://tavex.ro/aur/moneda-de-aur-filarmonica-din-viena-de-1-oz",
+  "weight_g": 31.103,
+  "stock_status": "In Stock",
+  "buy_price_ron": 11520,
+  "sell_price_ron": 11985,
+  "buy_price_per_g_ron": 370.38,
+  "sell_price_per_g_ron": 385.33
+}
+```
