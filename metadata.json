@@ -1,6 +1,0 @@
-{
-  "name": "Precious Metals Aggregator",
-  "description": "Scrapes and aggregates live precious metal prices from Tavex, Aurom, and Avangard Gold.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
