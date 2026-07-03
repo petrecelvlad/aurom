@@ -1,3 +1,12 @@
+/**
+ * @propolis
+ * {
+ *   "role": "SERVICE",
+ *   "constraints": ["React custom hook", "Client-side data fetching"],
+ *   "agent_instructions": "Fetches the live BNR gold benchmark rate once on mount from /api/benchmark/gold."
+ * }
+ */
+
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -19,9 +28,10 @@ export function useBenchmark() {
         setIsLoading(true);
         const response = await axios.get('/api/benchmark/gold');
         setBenchmark(response.data);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching benchmark:', err);
-        setError(err.message || 'Error fetching benchmark');
+        const message = err instanceof Error ? err.message : 'Error fetching benchmark';
+        setError(message);
       } finally {
         setIsLoading(false);
       }

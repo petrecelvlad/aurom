@@ -143,8 +143,9 @@ export class TavexScraper implements IScraperStrategy {
               console.warn('Skipping invalid product data for Tavex:', parsedData.error);
           }
         });
-      } catch (err: any) {
-        console.error(`Error scraping Tavex url ${url}:`, err.message);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`Error scraping Tavex url ${url}:`, message);
       }
     }
     

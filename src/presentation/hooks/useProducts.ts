@@ -27,9 +27,10 @@ export function useProducts() {
       setProducts(data);
       setHasSynced(true);
       setLastSyncedAt(new Date());
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching data:', err);
-      setError(err.message || 'A apărut o eroare necunoscută la preluarea datelor.');
+      const message = err instanceof Error ? err.message : 'A apărut o eroare necunoscută la preluarea datelor.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

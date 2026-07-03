@@ -1,5 +1,17 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+/**
+ * @propolis
+ * {
+ *   "role": "ADAPTER",
+ *   "constraints": [
+ *     "Implements the IScraperStrategy port",
+ *     "Dependencies: axios, cheerio, WeightConverter, PriceParser"
+ *   ],
+ *   "agent_instructions": "This is the Aurom Investment dealer website scraper adapter. Paginates the WooCommerce shop up to 10 pages. Ensure you handle missing properties gracefully and log errors clearly."
+ * }
+ */
+
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
@@ -124,11 +136,12 @@ export class AuromScraper implements IScraperStrategy {
           console.log(`Zero weighted items found on page ${page}.`);
         }
 
-      } catch (error: any) {
-        if (error.response && error.response.status === 404) {
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
           console.log(`Aurom page ${page} returned 404. Stopping pagination.`);
         } else {
-          console.error(`Error scraping Aurom page ${page}:`, error.message);
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`Error scraping Aurom page ${page}:`, message);
         }
         break; // Stop pagination on error to be safe
       }

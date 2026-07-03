@@ -1,4 +1,17 @@
 import axios from 'axios';
+/**
+ * @propolis
+ * {
+ *   "role": "ADAPTER",
+ *   "constraints": [
+ *     "Implements the IScraperStrategy port",
+ *     "Dependencies: axios, WeightConverter",
+ *     "Sources from the unauthenticated Shopify /products.json endpoint, not HTML"
+ *   ],
+ *   "agent_instructions": "This is the Avangard Gold dealer scraper adapter. Iterates products and their variants from the Shopify JSON API. Ensure you handle missing properties gracefully and log errors clearly."
+ * }
+ */
+
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
@@ -116,8 +129,9 @@ export class AvangardScraper implements IScraperStrategy {
           }
         }
       }
-    } catch (err: any) {
-      console.error('Error scraping Avangard Gold:', err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('Error scraping Avangard Gold:', message);
     }
 
     return results;

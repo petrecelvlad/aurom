@@ -1,3 +1,16 @@
+/**
+ * @propolis
+ * {
+ *   "role": "ADAPTER",
+ *   "constraints": [
+ *     "Implements the IScraperStrategy port",
+ *     "Sources from a daily PDF (Cotatii_Aur.pdf), not HTML — parses via pdf-parse and fixed regex per product",
+ *     "Cached for 60 minutes upstream in server.ts, not 5, since the source PDF only updates daily"
+ *   ],
+ *   "agent_instructions": "This is the BCR bank gold-rate scraper adapter. If BCR changes the PDF layout, the fixed regex table for lingouri/monede will silently stop matching and return 0 products — check text extraction manually before assuming a code bug."
+ * }
+ */
+
 import axios from 'axios';
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
@@ -92,8 +105,9 @@ export class BCRScraper implements IScraperStrategy {
         }
       }
 
-    } catch (error: any) {
-      console.error(`Error scraping BCR:`, error.message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Error scraping BCR:`, message);
     }
 
     return results;

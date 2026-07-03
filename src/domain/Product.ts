@@ -1,3 +1,15 @@
+/**
+ * @propolis
+ * {
+ *   "role": "MODEL",
+ *   "constraints": [
+ *     "ProductSchema is the runtime source of truth for scraper output — see UNIFIED_SCRAPER_SCHEMA.md",
+ *     "detectMetal is the single source of truth for metal classification; scrapers must not reimplement it"
+ *   ],
+ *   "agent_instructions": "Defines StandardizedProduct and the detectMetal classifier shared by every scraper adapter."
+ * }
+ */
+
 import { z } from 'zod';
 
 export const ProductSchema = z.object({

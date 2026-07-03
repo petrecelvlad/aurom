@@ -73,9 +73,10 @@ async function startServer() {
       } else {
         res.status(404).json({ detail: 'Gold rate not found in BNR XML' });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error('Error fetching BNR benchmark:', error);
-      res.status(500).json({ detail: `Failed to fetch BNR data: ${error.message}` });
+      res.status(500).json({ detail: `Failed to fetch BNR data: ${message}` });
     }
   });
 
@@ -83,9 +84,10 @@ async function startServer() {
     try {
       const results = await aggregatorService.aggregateAll();
       res.json({ data: results });
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(error);
-      res.status(500).json({ detail: `Failed to fetch data: ${error.message}` });
+      res.status(500).json({ detail: `Failed to fetch data: ${message}` });
     }
   });
 

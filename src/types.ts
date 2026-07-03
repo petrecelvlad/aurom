@@ -1,3 +1,12 @@
+/**
+ * @propolis
+ * {
+ *   "role": "MODEL",
+ *   "constraints": ["Presentation-layer types only — core StandardizedProduct shape lives in domain/Product.ts"],
+ *   "agent_instructions": "Re-exports StandardizedProduct and defines UI-only derived types (WeightTier, EnrichedProduct)."
+ * }
+ */
+
 import { StandardizedProduct } from './domain/Product';
 
 export type { StandardizedProduct };

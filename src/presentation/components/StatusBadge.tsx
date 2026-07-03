@@ -1,3 +1,12 @@
+/**
+ * @propolis
+ * {
+ *   "role": "UI_COMPONENT",
+ *   "constraints": ["React component", "Pure presentation — no data fetching"],
+ *   "agent_instructions": "Renders a normalized stock-status pill from raw provider stock text (Romanian or English)."
+ * }
+ */
+
 import React from 'react';
 
 interface StatusBadgeProps {
