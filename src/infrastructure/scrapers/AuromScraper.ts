@@ -1,0 +1,167 @@
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import { IScraperStrategy } from '../../domain/IScraperStrategy';
+import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
+import { WeightConverter } from '../../domain/WeightConverter';
+
+export class AuromScraper implements IScraperStrategy {
+  get providerName(): string {
+    return 'Aurom Investment';
+  }
+
+  private cleanRomanianPrice(priceText: string): number | null {
+    if (!priceText) return null;
+    
+    // Strip out currency markers and non-numeric/punctuation/whitespace characters
+    let cleaned = priceText.toLowerCase()
+      .replace(/lei/g, '')
+      .replace(/ron/g, '')
+      .replace(/[^\d.,]/g, '') // Keep only digits, periods, and commas
+      .trim();
+    
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+      // Romanian standard often uses '.' for thousands and ',' for decimals
+      cleaned = cleaned.replace(/\./g, '').replace(/,/g, '.');
+    } else if (cleaned.includes(',')) {
+      // Just decimal comma format (e.g. 550,50)
+      cleaned = cleaned.replace(/,/g, '.');
+    } else if (cleaned.includes('.')) {
+      // Just dot format, check if it's thousands separator or decimal
+      // If dot is followed by exactly 2 digits, it's likely decimal. Otherwise thousands.
+      const parts = cleaned.split('.');
+      if (parts[parts.length - 1].length !== 2) {
+        cleaned = cleaned.replace(/\./g, '');
+      }
+    }
+    
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parseFloat(parsed.toFixed(2));
+  }
+
+  async scrape(): Promise<StandardizedProduct[]> {
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+    };
+
+    const uniqueProducts = new Map<string, StandardizedProduct>();
+    
+    // We will scrape the first 10 pages of the shop to list standard investment items.
+    // If we hit a page with 0 products or a 404, we stop.
+    for (let page = 1; page <= 10; page++) {
+      const url = page === 1 
+        ? 'https://aurominvestment.ro/shop/' 
+        : `https://aurominvestment.ro/shop/page/${page}/`;
+      
+      try {
+        console.log(`Scraping Aurom page ${page}: ${url}`);
+        const response = await axios.get(url, { headers, timeout: 15000 });
+        const $ = cheerio.load(response.data);
+
+        const productElements = $('li.product');
+        if (productElements.length === 0) {
+          console.log(`No more products found on page ${page}. Stopping pagination.`);
+          break;
+        }
+
+        let addedOnPage = 0;
+
+        productElements.each((idx, el) => {
+          const product = $(el);
+          
+          // 1. Title / Name
+          const titleEl = product.find('.woocommerce-loop-product__title');
+          const name = titleEl.text().trim() || product.find('h2').text().trim() || 'Unknown Product';
+          
+          // 2. SKU / ID
+          const rawSku = product.attr('data-product_id');
+          const sku = rawSku ? String(rawSku) : `aurom-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+          
+          // 3. URL
+          const linkEl = product.find('.woocommerce-LoopProduct-link, a').first();
+          const link = linkEl.attr('href') || '';
+
+          // Filter by precious metal type (exclude gems, boxes, accessories)
+          const metal = detectMetal(name, link);
+          if (!metal) {
+            return; // Skip non-precious metals
+          }
+
+          // Filter out obvious non-investment products (like boxes, accessories)
+          // We only want products where we can calculate weight_g
+          const weight_g = WeightConverter.extractWeightInGrams(name);
+          if (weight_g === null) {
+            return; // Skip accessory or non-weighted items
+          }
+          
+          // 4. Stock Status Mapping
+          const classesAttr = product.attr('class') || '';
+          const classes = classesAttr.split(' ');
+          let stock_status = 'In Stock'; // Default to In Stock unless out of stock class found
+          if (classes.includes('outofstock') || classes.includes('out-of-stock')) {
+            stock_status = 'Out of Stock';
+          }
+          
+          // 5. Extract Prices (Sell vs Buy)
+          // WooCommerce usually shows only the selling price on shop pages.
+          const sellPriceEl = product.find('.price .amount').last();
+          const sell_price_ron = sellPriceEl.length ? this.cleanRomanianPrice(sellPriceEl.text()) : null;
+          
+          // Aurom usually doesn't have buy-back rates on the general listing page
+          const buy_price_ron: number | null = null; 
+
+          // 6. Calculate Per-Gram Metrics
+          let sell_price_per_g_ron: number | null = null;
+          let buy_price_per_g_ron: number | null = null;
+          
+          if (weight_g > 0) {
+            if (sell_price_ron) {
+              sell_price_per_g_ron = parseFloat((sell_price_ron / weight_g).toFixed(2));
+            }
+            if (buy_price_ron) {
+              buy_price_per_g_ron = parseFloat((buy_price_ron / weight_g).toFixed(2));
+            }
+          }
+
+          const parsedData = ProductSchema.safeParse({
+            provider: this.providerName,
+            sku,
+            name,
+            url: link,
+            weight_g,
+            stock_status,
+            buy_price_ron,
+            sell_price_ron,
+            buy_price_per_g_ron,
+            sell_price_per_g_ron,
+            metal
+          });
+
+          if (parsedData.success) {
+            uniqueProducts.set(sku, parsedData.data);
+            addedOnPage++;
+          } else {
+            console.warn('Skipping invalid product data for Aurom:', parsedData.error);
+          }
+        });
+
+        console.log(`Page ${page} parsed: found ${productElements.length} products, added ${addedOnPage} weighted items.`);
+        
+        // If we found products but none of them had valid weights (unlikely unless page is all accessories),
+        // we still continue, but let's log it.
+        if (addedOnPage === 0 && productElements.length > 0) {
+          console.log(`Zero weighted items found on page ${page}.`);
+        }
+
+      } catch (error: any) {
+        if (error.response && error.response.status === 404) {
+          console.log(`Aurom page ${page} returned 404. Stopping pagination.`);
+        } else {
+          console.error(`Error scraping Aurom page ${page}:`, error.message);
+        }
+        break; // Stop pagination on error to be safe
+      }
+    }
+
+    return Array.from(uniqueProducts.values());
+  }
+}
