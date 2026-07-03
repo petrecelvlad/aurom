@@ -20,10 +20,9 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
     *   **Kg:** Matches `/(\d+(?:\.\d+)?)\s*kg\b/` -> Multiplies by `1000.0`.
     *   **Grams:** Matches `/(\d+(?:\.\d+)?)\s*(?:g|gr|gram|grame)\b/`.
 *   **SKU Logic:** Uses `data-product_id` attribute. If missing, it uses `aurom-{slugified_name}`.
-*   **Price Extraction (`cleanRomanianPrice`):**
+*   **Price Extraction:**
     *   Finds `.price .amount` and takes the `.last()` element (assuming the last element is the current selling price, skipping strikethrough sale prices).
-    *   Strips `lei`, `ron`, keeps only `\d.,`.
-    *   Handles Romanian formatting: Replaces `,` with `.` if it's acting as a decimal (e.g., `550,50` -> `550.50`). Checks if `.` is a thousands separator by checking trailing digits count.
+    *   Text is passed to the centralized `PriceParser.parseRonPrice` (see [UNIFIED_SCRAPER_SCHEMA.md](./UNIFIED_SCRAPER_SCHEMA.md)) — not parsed locally.
     *   **Buy Price:** Always `null`. Aurom does not expose this.
 *   **Stock Status:** Checks if `product.attr('class')` includes `outofstock` or `out-of-stock`. Defaults to `In Stock`.
 
@@ -68,11 +67,11 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 *   **Stock Status:** Checks classes for `outofstock`, `out-of-stock`, and aggressively checks the raw `.text()` of the product for "stoc epuizat", "epuizat", or "out of stock".
 *   **Weight Extraction (`extractWeightInGrams`):** Identical Regex patterns as Aurom.
 
-### 🛑 Neogold Autopsy (Critical Failure Analysis):
-The scraper suffers from severe bugs in its `extractPricesFromNeogold` method:
-1.  **Sibling vs. Parent-Child DOM Traversal Bug:** The code attempts to match elements containing the text "Vindem" (Sell) or "Cumpăram" (Buy), and then runs `$(el).find('.amount')` to get the price. If the layout renders the label and the price as siblings (e.g. `<span>Vindem</span> <span class="amount">100</span>`), `.find()` yields nothing.
-2.  **Dangerous Price Fallback Logic:** When the specific labels fail to match, the fallback simply selects the *first* price (`amountElements.first().text()`). If the "Buy" price is visually rendered first, it is logged as the "Sell" price.
-3.  **Discount/Strikethrough Confusion:** The fallback looks for `<ins>` tags but fails to robustly distinguish between `<del>` (old price) and the actual selling price when elements are deeply nested.
+*   **Price Extraction:** Locates `span.price > div` blocks, matching "Vindem" (Sell) / "Cumpăram" (Buy) label text to their sibling `.amount bdi` price text. Falls back to the first `.price .amount bdi` found if no labels match. Extracted text is passed to the centralized `PriceParser.parseRonPrice` (see [UNIFIED_SCRAPER_SCHEMA.md](./UNIFIED_SCRAPER_SCHEMA.md)) — not parsed locally.
+
+### 🛑 Neogold Autopsy (Known Fragility):
+1.  **Sibling vs. Parent-Child DOM Traversal:** The label-matching depends on the price living inside the same container element as the label text. If a future layout change renders the label and price as fully disjoint siblings, the label match can miss the price.
+2.  **Fallback Ambiguity:** When specific labels fail to match, the fallback selects the *first* price on the card. If the "Buy" price is visually rendered first in a future layout, it would be misread as "Sell".
 
 ---
 

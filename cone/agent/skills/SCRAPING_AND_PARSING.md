@@ -26,7 +26,17 @@ We use `cheerio` to parse scraped HTML responses on our Express backend.
 
 ---
 
-## 2. Weight Parsing (`WeightConverter`)
+## 2. Price Parsing (`PriceParser`)
+
+Romanian price text is ambiguous: a dot or comma can be a decimal separator or a thousands separator depending on the site. You must use `PriceParser.parseRonPrice` to convert scraped price text into a RON float — never hand-roll comma/dot stripping logic inside a scraper.
+
+*   Handles mixed format (`"1.234,50 lei"`), decimal-comma-only (`"550,50"`), and ambiguous decimal-dot (`"125.50"` vs. thousands `"1.234"`).
+*   Not for pre-structured numeric sources — if a provider gives you JSON with a numeric price field (e.g. a Shopify `variant.price`), parse it directly instead.
+*   Not for non-Romanian formats — e.g. BCR's PDF price figures use thousands-comma with no decimal fraction, a different convention entirely.
+
+---
+
+## 3. Weight Parsing (`WeightConverter`)
 
 Many retail listings name items using varying English and Romanian weight markers (e.g., `oz`, `uncie`, `uncii`, `ounce`, `ounces`, `gram`, `g`).
 
@@ -38,7 +48,7 @@ You must use `WeightConverter.parseWeight` to parse the weight from names.
 
 ---
 
-## 3. Scraper Interface Implementation
+## 4. Scraper Interface Implementation
 
 All web scrapers MUST implement the `IScraperStrategy` interface in `/src/domain/IScraperStrategy.ts`:
 ```typescript

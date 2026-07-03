@@ -3,24 +3,11 @@ import * as cheerio from 'cheerio';
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
+import { PriceParser } from '../../domain/PriceParser';
 
 export class NeogoldScraper implements IScraperStrategy {
   get providerName(): string {
     return 'Neogold';
-  }
-
-  private extractPrice(cleanText: string): number | null {
-    const priceRegex = /([\d.,]+)/;
-    const match = cleanText.match(priceRegex);
-    if (!match) return null;
-
-    // Formatted example: "20.539,43" -> remove dot separator, flip decimal comma to dot
-    const cleanString = match[1]
-      .replace(/\./g, '')
-      .replace(',', '.');
-
-    const parsedPrice = parseFloat(cleanString);
-    return isNaN(parsedPrice) ? null : parsedPrice;
   }
 
   private determineStockStatus(cardText: string): 'In Stock' | 'Out of Stock' {
@@ -124,8 +111,8 @@ export class NeogoldScraper implements IScraperStrategy {
           const cleanSellText = sellText.replace(/\u00a0/g, ' ').trim();
           const cleanBuyText = buyText.replace(/\u00a0/g, ' ').trim();
 
-          const sell_price_ron = this.extractPrice(cleanSellText);
-          const buy_price_ron = this.extractPrice(cleanBuyText);
+          const sell_price_ron = PriceParser.parseRonPrice(cleanSellText);
+          const buy_price_ron = PriceParser.parseRonPrice(cleanBuyText);
 
           // 6. Calculate Per-Gram Metrics
           let sell_price_per_g_ron: number | null = null;

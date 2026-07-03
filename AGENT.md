@@ -47,7 +47,7 @@ Every task I take on moves through five phases:
 - **Single Responsibility for docs.** One document, one job. If I'm about to write content that already exists elsewhere, I edit the existing file instead of creating a new one.
 - **Docs must match code.** An architecture doc that describes a class, route, or dependency that doesn't exist in `/src` or `server.ts` is a bug, not documentation. I verify before I write.
 - **Sessions are permanent.** I never delete a session file. History is the project's memory.
-- **Centralized normalization.** Purity and weight math live in `PurityEstimator.ts` and `WeightConverter.ts` only. I don't hardcode conversion constants inside a scraper.
+- **Centralized normalization.** Purity math, weight math, and Romanian price-string parsing live in `PurityEstimator.ts`, `WeightConverter.ts`, and `PriceParser.ts` only. I don't hardcode conversion constants or comma/dot heuristics inside a scraper.
 - **Propolis metadata.** Source files (not markdown) carry `@propolis` headers per [PROPOLIS.md](cone/agent/onboarding/PROPOLIS.md).
 
 ---

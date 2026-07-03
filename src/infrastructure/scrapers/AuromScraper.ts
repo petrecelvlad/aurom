@@ -3,39 +3,11 @@ import * as cheerio from 'cheerio';
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
+import { PriceParser } from '../../domain/PriceParser';
 
 export class AuromScraper implements IScraperStrategy {
   get providerName(): string {
     return 'Aurom Investment';
-  }
-
-  private cleanRomanianPrice(priceText: string): number | null {
-    if (!priceText) return null;
-    
-    // Strip out currency markers and non-numeric/punctuation/whitespace characters
-    let cleaned = priceText.toLowerCase()
-      .replace(/lei/g, '')
-      .replace(/ron/g, '')
-      .replace(/[^\d.,]/g, '') // Keep only digits, periods, and commas
-      .trim();
-    
-    if (cleaned.includes(',') && cleaned.includes('.')) {
-      // Romanian standard often uses '.' for thousands and ',' for decimals
-      cleaned = cleaned.replace(/\./g, '').replace(/,/g, '.');
-    } else if (cleaned.includes(',')) {
-      // Just decimal comma format (e.g. 550,50)
-      cleaned = cleaned.replace(/,/g, '.');
-    } else if (cleaned.includes('.')) {
-      // Just dot format, check if it's thousands separator or decimal
-      // If dot is followed by exactly 2 digits, it's likely decimal. Otherwise thousands.
-      const parts = cleaned.split('.');
-      if (parts[parts.length - 1].length !== 2) {
-        cleaned = cleaned.replace(/\./g, '');
-      }
-    }
-    
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? null : parseFloat(parsed.toFixed(2));
   }
 
   async scrape(): Promise<StandardizedProduct[]> {
@@ -104,7 +76,7 @@ export class AuromScraper implements IScraperStrategy {
           // 5. Extract Prices (Sell vs Buy)
           // WooCommerce usually shows only the selling price on shop pages.
           const sellPriceEl = product.find('.price .amount').last();
-          const sell_price_ron = sellPriceEl.length ? this.cleanRomanianPrice(sellPriceEl.text()) : null;
+          const sell_price_ron = sellPriceEl.length ? PriceParser.parseRonPrice(sellPriceEl.text()) : null;
           
           // Aurom usually doesn't have buy-back rates on the general listing page
           const buy_price_ron: number | null = null; 
