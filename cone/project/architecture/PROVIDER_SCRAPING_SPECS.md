@@ -8,7 +8,7 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 
 **Class:** `AuromScraper` implements `IScraperStrategy`
 **Target URLs:** `https://aurominvestment.ro/shop/page/{page}/` (1 to 10 pages).
-**Library:** `axios` + `cheerio` (HTML DOM Parsing)
+**Library:** `fetch` (Workers-native, via `fetchWithTimeout`) + `cheerio` (HTML DOM Parsing)
 **Timeout:** 15,000ms
 
 ### Implementation Details:
@@ -32,7 +32,7 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 
 **Class:** `AvangardScraper` implements `IScraperStrategy`
 **Target URLs:** `https://avangardgold.ro/products.json?limit=250` (Shopify JSON API)
-**Library:** `axios` (JSON Parsing)
+**Library:** `fetch` (Workers-native, via `fetchWithTimeout`)
 **Timeout:** 15,000ms
 
 ### Implementation Details:
@@ -58,7 +58,7 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 
 **Class:** `NeogoldScraper` implements `IScraperStrategy`
 **Target URLs:** WooCommerce category pages (`/lingouri-aur/`, `/monede-aur/`, `/lingouri-argint/`, `/monede-argint/`)
-**Library:** `axios` + `cheerio`
+**Library:** `fetch` (Workers-native, via `fetchWithTimeout`) + `cheerio`
 **Timeout:** 15,000ms
 
 ### Implementation Details:
@@ -79,7 +79,7 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 
 **Class:** `TavexScraper` implements `IScraperStrategy`
 **Target URLs:** `https://tavex.ro/aur/` and `https://tavex.ro/argint/`
-**Library:** `axios` + `cheerio` (Hybrid HTML & JSON-LD parsing)
+**Library:** `fetch` (Workers-native, via `fetchWithTimeout`) + `cheerio` (Hybrid HTML & JSON-LD parsing)
 **Timeout:** 15,000ms
 
 ### Implementation Details:
@@ -100,19 +100,29 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 
 ---
 
-## 5. Infrastructure: `CachingScraperDecorator.ts`
+## 5. BCR (`BCRScraper.ts`)
 
-**Class:** `CachingScraperDecorator` implements `IScraperStrategy`
-**Design Pattern:** Decorator Pattern (Wrapper)
+**Class:** `BCRScraper` implements `IScraperStrategy`
+**Target URL:** `https://www.bcr.ro/content/dam/ro/bcr/www_bcr_ro/Aur/Cotatii_Aur.pdf` (a daily PDF, not HTML)
+**Library:** `fetch` (Workers-native, via `fetchWithTimeout`) + `unpdf` (PDF.js-based, Workers-compatible text extraction)
+**Timeout:** 15,000ms
 
 ### Implementation Details:
-*   **Purpose:** Wraps any existing `IScraperStrategy` to prevent aggressive rate-limiting and reduce HTTP calls.
-*   **Mechanism:** 
-    *   Maintains an internal array `cache: StandardizedProduct[] | null`.
-    *   Tracks `lastFetchTime`.
-    *   Default `cacheDurationMinutes` is 5 minutes.
-*   **Logic Flow:**
-    *   On `scrape()`, calculates `Date.now() - this.lastFetchTime`.
-    *   If it is under the `cacheDurationMs` threshold, it immediately resolves the cached array.
-    *   If a cache miss occurs, it `await`s the inner scraper, updates `lastFetchTime`, caches the result, and returns it.
-*   **Transparency:** Proxies the `providerName` getter down to the underlying instance seamlessly.
+*   **No pagination, no DOM.** The entire product list comes from regex-matching a fixed set of known products against the PDF's extracted plain text — there is no generic parsing here, every product is a hand-written pattern.
+*   **Lingouri (bars):** `/(\d+)g bar.*?Good Delivery\s*\1\s*([\d,]+)/g` matches every `{weight}g bar ... Good Delivery {weight} {price}` occurrence in one pass.
+*   **Monede (coins) + Ducats:** A fixed table of 6 patterns, one per known denomination (1/10, 1/4, 1/2, 1 oz Vienna Philharmonic; Ducat 1; Ducat 4), each matching on a unique substring (`mm` + a specific millimeter/gram marker) followed by the price.
+*   **Regexes use `\s*` around the number groups** — `unpdf`'s text extraction spaces tokens differently than the previous `pdf-parse` library did (e.g. `"Good Delivery 2 1,519"` with spaces, not `"Good Delivery21,519"`). If BCR changes the PDF layout, or the text-extraction library changes again, re-verify every pattern against the live PDF text before assuming the regressions are a code bug elsewhere.
+*   **Price parsing:** Simple `.replace(/,/g, '')` then `parseFloat` — this PDF uses thousands-comma with no decimal fraction, a different convention from the Romanian web price text `PriceParser.parseRonPrice` handles, so it is intentionally not routed through that shared parser.
+*   **Buy Price:** Always `null` for lingouri/monede sale offers (BCR does publish a lingouri buy-back price in the PDF, but it isn't parsed by this scraper today).
+
+---
+
+## 6. Persistence: `D1ProductRepository.ts` / `D1BenchmarkRepository.ts`
+
+**Classes:** implement `IProductRepository` / `IBenchmarkRepository` against Cloudflare D1
+**Called from:** `src/worker.ts` — `saveSnapshot()` once per cron tick (write), `getAll()` / `getLatest()` once per HTTP request (read-only)
+
+### Implementation Details:
+*   **`products` / `benchmark`:** Upserted every tick (`INSERT ... ON CONFLICT DO UPDATE`), keyed by `(provider, sku)` and `source` respectively. This *is* the cache now — there is no in-memory or per-request caching layer, because the fetch handler never scrapes; it only ever reads this table.
+*   **`price_history` / `benchmark_history`:** Append-only, but a row is written **only when the price actually changed** since the last tick (compared against the prior snapshot before the upsert). A naive "insert one history row per tick" would write ~200 rows × 1440 ticks/day for data that mostly doesn't move — the change-check keeps this proportional to actual price movement instead.
+*   **Batching:** `saveSnapshot()` chunks D1 `.batch()` calls to stay comfortably under D1's per-batch statement limit.

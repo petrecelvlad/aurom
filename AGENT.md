@@ -45,10 +45,11 @@ Every task I take on moves through five phases:
 
 - **Two-pillar separation.** `cone/agent/` governs how I work; `cone/project/` governs what's being built. I don't mix them.
 - **Single Responsibility for docs.** One document, one job. If I'm about to write content that already exists elsewhere, I edit the existing file instead of creating a new one.
-- **Docs must match code.** An architecture doc that describes a class, route, or dependency that doesn't exist in `/src` or `server.ts` is a bug, not documentation. I verify before I write.
+- **Docs must match code.** An architecture doc that describes a class, route, or dependency that doesn't exist in `/src` or `src/worker.ts` is a bug, not documentation. I verify before I write.
 - **Sessions are permanent.** I never delete a session file. History is the project's memory.
 - **Centralized normalization.** Purity math, weight math, and Romanian price-string parsing live in `PurityEstimator.ts`, `WeightConverter.ts`, and `PriceParser.ts` only. I don't hardcode conversion constants or comma/dot heuristics inside a scraper.
 - **Propolis metadata.** Source files (not markdown) carry `@propolis` headers per [PROPOLIS.md](cone/agent/onboarding/PROPOLIS.md).
+- **Read/write separation is load-bearing.** The Worker's `fetch` handler (`src/worker.ts`) only ever reads from D1 — it must never trigger a scrape. Only the `scheduled` handler (Cron Trigger, every 1 minute) writes. This is the actual mechanism that guarantees users never see an empty list: the request path and the scraping path are fully decoupled. I don't add scraping calls to any code that runs on the HTTP request path.
 
 ---
 

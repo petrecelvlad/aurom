@@ -19,10 +19,11 @@ This skill outlines our procedural playbook for web scraping and parsing bullion
 ## 1. Scraping Resilience & Standards
 
 ### Cheerio Usage
-We use `cheerio` to parse scraped HTML responses on our Express backend.
+We use `cheerio` to parse scraped HTML responses inside the Cloudflare Worker.
 *   **Selector Guarding**: Always wrap selector extraction in safe check structures (e.g., check for nulls or undefined values, trim text, and strip whitespace).
 *   **Encoding & Diacritics**: Romanian websites contain diacritics (ș, ț, ă, î, â) or custom HTML entities. Ensure cheerio is configured to read standard UTF-8 characters correctly.
-*   **Request Caching**: Always wrap raw scraping operations in our central caching decorator (`CachingScraperDecorator.ts`) to avoid hitting dealer servers repeatedly in short periods.
+*   **HTTP requests**: Use `fetchWithTimeout` from `src/infrastructure/scrapers/httpClient.ts` (Workers-native `fetch`, not `axios`) for a consistent request timeout.
+*   **Request Cadence**: There is no per-request or per-instance caching decorator anymore — the `scheduled` handler is the only thing that ever invokes scrapers, and Cron Triggers already guarantee it runs at most once a minute. Do not add scraper-level caching; if a rate-limiting concern comes up, it belongs in the cron interval or the scraper's own request pacing, not a wrapper around `IScraperStrategy`.
 
 ---
 
@@ -53,7 +54,8 @@ You must use `WeightConverter.parseWeight` to parse the weight from names.
 All web scrapers MUST implement the `IScraperStrategy` interface in `/src/domain/IScraperStrategy.ts`:
 ```typescript
 export interface IScraperStrategy {
-  scrape(): Promise<Product[]>;
+  get providerName(): string;
+  scrape(): Promise<StandardizedProduct[]>;
 }
 ```
 

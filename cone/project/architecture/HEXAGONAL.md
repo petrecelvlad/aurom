@@ -19,35 +19,61 @@ To keep the precious metals aggregation engine pure, testable, and robust agains
 
 ## 🏗️ Structure Overview
 
+The Worker has two separate entry points that never call each other directly — they're connected only through D1.
+
+**Write path — `scheduled` handler, runs every 1 minute (Cron Trigger):**
 ```
                       +-------------------+
-                      |      CLIENT       | (React App)
+                      |    ENTRY_POINT    | (src/worker.ts — scheduled handler)
                       +---------+---------+
-                                | (HTTP API /api/products)
-                                v
-                      +-------------------+
-                      |    ENTRY_POINT    | (Express server.ts)
-                      +---------+---------+
-                                |
                                 v
                      +---------------------+
                      |       SERVICE       | (ProductAggregatorService)
                      +----------+----------+
-                                |
                                 | (Uses port)
                                 v
                       +-------------------+
                       |       PORT        | (IScraperStrategy)
                       +---------+---------+
-                                |
                                 | (Implemented by)
             +-------------------+-------------------+
-            |                   |                   |
             v                   v                   v
       +-----------+       +-----------+       +-----------+
-      |  ADAPTER  |       |  ADAPTER  |       |  ADAPTER  | (Individual Scrapers:
-      |  (Aurom)  |       |  (Tavex)  |       | (BCR, etc)|  Aurom, Tavex, BCR, etc)
-      +-----------+       +-----------+       +-----------+
+      |  ADAPTER  |       |  ADAPTER  |       |  ADAPTER  | (Aurom, Tavex, Avangard,
+      +-----------+       +-----------+       +-----------+   Neogold, BCR)
+                                |
+                                v (aggregated products)
+                      +-------------------+
+                      |       PORT        | (IProductRepository / IBenchmarkRepository)
+                      +---------+---------+
+                                v
+                      +-------------------+
+                      |      ADAPTER      | (D1ProductRepository / D1BenchmarkRepository)
+                      +---------+---------+
+                                v
+                              [ D1 ]
+```
+
+**Read path — `fetch` handler, one per HTTP request:**
+```
+                      +-------------------+
+                      |      CLIENT       | (React SPA, served by Workers Static Assets —
+                      +---------+---------+  requests never even reach the Worker for these)
+                                | (HTTP GET /api/scrape/all, /api/benchmark/gold)
+                                v
+                      +-------------------+
+                      |    ENTRY_POINT    | (src/worker.ts — fetch handler, Hono)
+                      +---------+---------+
+                                v (read-only — never scrapes)
+                      +-------------------+
+                      |       PORT        | (IProductRepository / IBenchmarkRepository)
+                      +---------+---------+
+                                v
+                      +-------------------+
+                      |      ADAPTER      | (D1ProductRepository / D1BenchmarkRepository)
+                      +---------+---------+
+                                v
+                              [ D1 ]
 ```
 
 ---
@@ -56,14 +82,15 @@ To keep the precious metals aggregation engine pure, testable, and robust agains
 
 1.  **Core Domain Models (`/src/domain/Product.ts`)**:
     *   No external dependencies. Pure data interfaces.
-2.  **Core Logic / Utilities (`/src/domain/PurityEstimator.ts`, `/src/domain/WeightConverter.ts`)**:
+2.  **Core Logic / Utilities (`/src/domain/PurityEstimator.ts`, `/src/domain/WeightConverter.ts`, `/src/domain/PriceParser.ts`)**:
     *   Pure mathematical/logical transformations.
-    -   Encapsulates fine-weight calculations and unit weight parsing.
-3.  **Ports (`/src/domain/IScraperStrategy.ts`)**:
-    *   The interface that defines the contract between our aggregator orchestrator and individual dealer scrapers.
-    *   Guarantees that scrapers are swappable.
-4.  **Adapters (`/src/infrastructure/scrapers/`)**:
-    *   Scraper implementations that parse specific dealer HTML (using Cheerio).
-    *   They return raw products which are normalized by the service.
-5.  **Composition / Orchestration (`/src/application/ProductAggregatorService.ts`)**:
-    *   Orchestrates the scraping processes, performs post-scraping price normalization, markup calculations, sorting, and error logging.
+    -   Encapsulates fine-weight calculations, unit weight parsing, and Romanian price-string parsing.
+3.  **Ports (`/src/domain/IScraperStrategy.ts`, `/src/domain/IProductRepository.ts`, `/src/domain/IBenchmarkRepository.ts`)**:
+    *   `IScraperStrategy` defines the contract between the aggregator orchestrator and individual dealer scrapers — guarantees scrapers are swappable.
+    *   `IProductRepository` / `IBenchmarkRepository` define the contract between the Worker's entry points and persistence — guarantees D1 could be swapped for another store without touching the scheduled/fetch handlers.
+4.  **Adapters (`/src/infrastructure/scrapers/`, `/src/infrastructure/db/`, `/src/infrastructure/benchmark/`)**:
+    *   Scraper implementations parse specific dealer HTML/JSON/PDF (Cheerio, unpdf) and return raw products normalized by the service.
+    *   `D1ProductRepository` / `D1BenchmarkRepository` implement the repository ports against Cloudflare D1.
+5.  **Composition / Orchestration (`/src/application/ProductAggregatorService.ts`, `/src/worker.ts`)**:
+    *   `ProductAggregatorService` orchestrates the scraping processes and performs post-scraping price normalization and markup calculations.
+    *   `src/worker.ts` is the Composition Root — it wires scrapers, the aggregator, and repositories together, and is the only place that instantiates concrete adapters.
