@@ -60,18 +60,28 @@ const getExtremeBadgeStyle = (
 
 /**
  * Continuous green -> yellow -> red spectrum across every row, not just the two
- * extremes. Used only for the Adaos (markup) column, by explicit request — lower
- * markup is better, so the lowest value in view gets green, the highest gets red,
- * and everything between is interpolated.
+ * extremes. Used only for the Adaos (markup) column, by explicit request.
+ *
+ * Deliberately rank-based, not min-max value-based: min-max stretches the scale
+ * to the single highest outlier, which compresses every other (likely clustered)
+ * value into a sliver near green — the "everything looks green except one red
+ * thing" problem. Ranking by sorted position guarantees the full spectrum is
+ * always used regardless of how the underlying values are distributed. Ties
+ * (identical markup) get the same averaged rank, so identical values always
+ * render identically.
  */
 const getMarkupSpectrumStyle = (value: number | null, values: number[]): React.CSSProperties => {
-  if (value === null || values.length === 0) return { color: '#D1D1D6' };
+  if (value === null || values.length < 2) return { color: '#D1D1D6' };
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (min === max) return { color: '#D1D1D6' };
+  const sorted = [...values].sort((a, b) => a - b);
+  const n = sorted.length;
 
-  const t = (value - min) / (max - min); // 0 = lowest/best markup, 1 = highest/worst
+  const firstIdx = sorted.indexOf(value);
+  let lastIdx = firstIdx;
+  while (lastIdx + 1 < n && sorted[lastIdx + 1] === value) lastIdx++;
+  const avgRank = (firstIdx + lastIdx) / 2;
+
+  const t = avgRank / (n - 1); // 0 = lowest/best markup, 1 = highest/worst
   const hue = 120 * (1 - t); // 120 green -> 60 yellow -> 0 red
 
   return {
