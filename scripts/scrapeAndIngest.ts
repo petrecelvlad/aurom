@@ -6,13 +6,14 @@
  *     "Runs under Node (via tsx), not in the Worker — this is where the actual scraping CPU cost lives",
  *     "Requires WORKER_URL and INGEST_SECRET environment variables"
  *   ],
- *   "agent_instructions": "Invoked by .github/workflows/scrape.yml on a schedule. Reuses ProductAggregatorService and 4 of the 5 scrapers unchanged — the only thing this file adds is the HTTP POST to the Worker's /api/ingest route. AvangardScraper is deliberately NOT registered — see the comment above the aggregator setup. Do not re-enable it without checking with the user; they're waiting on a reply from Avangard Gold first."
+ *   "agent_instructions": "Invoked by .github/workflows/scrape.yml on a schedule. Reuses ProductAggregatorService and all 5 scrapers unchanged — the only thing this file adds is the HTTP POST to the Worker's /api/ingest route. AvangardScraper was previously paused over an explicit ToS conflict (no outreach was ever sent — see PROVIDER_SCRAPING_SPECS.md); the user made an informed decision to re-enable it without asking first."
  * }
  */
 
 import { ProductAggregatorService } from '../src/application/ProductAggregatorService';
 import { TavexScraper } from '../src/infrastructure/scrapers/TavexScraper';
 import { AuromScraper } from '../src/infrastructure/scrapers/AuromScraper';
+import { AvangardScraper } from '../src/infrastructure/scrapers/AvangardScraper';
 import { NeogoldScraper } from '../src/infrastructure/scrapers/NeogoldScraper';
 import { BCRScraper } from '../src/infrastructure/scrapers/BCRScraper';
 import { fetchBnrGoldRate } from '../src/infrastructure/benchmark/BnrBenchmarkClient';
@@ -27,9 +28,7 @@ async function main(): Promise<void> {
   const aggregator = new ProductAggregatorService();
   aggregator.registerScraper(new TavexScraper());
   aggregator.registerScraper(new AuromScraper());
-  // AvangardScraper is paused: their ToS explicitly prohibits automated access via scripts.
-  // Outreach sent asking permission — re-enable only once they reply yes (or after removing
-  // this comment following an informed decision to accept the risk). See PROVIDER_SCRAPING_SPECS.md.
+  aggregator.registerScraper(new AvangardScraper());
   aggregator.registerScraper(new NeogoldScraper());
   aggregator.registerScraper(new BCRScraper());
 

@@ -3,7 +3,7 @@
  * {
  *   "role": "UI_COMPONENT",
  *   "constraints": ["React component", "Render-only table", "Strict styling guidelines"],
- *   "agent_instructions": "Renders a high-fidelity tabular bento block (Bar 3) displaying precious metal listings, employing scarce semantic color highlights for extreme valuations to avoid Rainbow Dashboard noise. PROVIDERS_LINK_OUT_ONLY exists for legal reasons (their ToS explicitly prohibits reproducing/publishing prices) — do not remove without checking with the user first."
+ *   "agent_instructions": "Renders a high-fidelity tabular bento block (Bar 3) displaying precious metal listings, employing scarce semantic color highlights for extreme valuations to avoid Rainbow Dashboard noise. PROVIDERS_LINK_OUT_ONLY is currently empty by the user's informed choice, despite real ToS conflicts found for Avangard Gold and Neogold (see PROVIDER_SCRAPING_SPECS.md) — the mechanism is kept in place in case either provider objects and it needs to be reapplied."
  * }
  */
 
@@ -11,9 +11,9 @@ import React, { useMemo } from 'react';
 import { EnrichedProduct } from '../../types';
 import { formatPrice } from '../utils/formatters';
 
-// These providers' Terms of Service explicitly prohibit reproducing/publishing their prices.
-// Pending explicit permission, we link out to their site instead of displaying the scraped number.
-const PROVIDERS_LINK_OUT_ONLY = ['Avangard Gold', 'Neogold'];
+// Avangard Gold and Neogold's Terms of Service explicitly prohibit reproducing/publishing
+// their prices. Left empty by informed user decision (2026-07) despite that conflict.
+const PROVIDERS_LINK_OUT_ONLY: string[] = [];
 
 export type SortConfig = {
   key: keyof EnrichedProduct;
