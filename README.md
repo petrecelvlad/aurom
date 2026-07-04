@@ -1,11 +1,11 @@
 # AUROM
 
-Real-time precious metals (gold, silver, platinum) price aggregator for the Romanian market. Compares physical bullion prices across major local dealers (Tavex, Aurom, Avangard, BCR, Neogold) against the live National Bank of Romania (BNR) gold benchmark, ranked by markup ("Adaos").
+Precious metals (gold, silver, platinum) price aggregator for the Romanian market. Compares physical bullion prices across major local dealers (Tavex, Aurom, Avangard, BCR, Neogold) against the National Bank of Romania (BNR) gold benchmark, ranked by markup ("Adaos"). Updated once daily, not real-time — see below.
 
 ## Architecture
 
 Two separate pieces, connected only through D1 and one authenticated HTTP call:
-- **Scraper** (`scripts/scrapeAndIngest.ts`) — runs under plain Node via GitHub Actions (`.github/workflows/scrape.yml`) roughly every 5 minutes, scrapes all 5 dealers plus the BNR benchmark, `POST`s the result to the Worker.
+- **Scraper** (`scripts/scrapeAndIngest.ts`) — runs under plain Node via GitHub Actions (`.github/workflows/scrape.yml`) once a day, scrapes the active dealers plus the BNR benchmark, `POST`s the result to the Worker. Deliberately infrequent — these prices don't change more than once a day, and there's no reason to hit dealer sites any harder than that. (Avangard Gold is currently paused pending a ToS permission reply — see `PROVIDER_SCRAPING_SPECS.md`.)
 - **Cloudflare Worker** (`src/worker.ts`, Hono) — `GET /api/scrape/all` and `GET /api/benchmark/gold` are pure reads against the last D1 snapshot (never scrapes on request); `POST /api/ingest` is the only thing that writes, authenticated by a shared secret.
 
 The scraper runs outside Cloudflare on purpose: Workers Free plan caps an invocation at 10ms of CPU time, and parsing ~15 dealer pages plus a PDF doesn't fit in that regardless of how the work is split. GitHub Actions has no such limit and is free on this public repo.

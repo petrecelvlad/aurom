@@ -2,10 +2,10 @@ name: Scrape and Ingest
 
 on:
   schedule:
-    # GitHub Actions' practical minimum granularity is 5 minutes, and even then
-    # the schedule can slip under load — treat this as "about every 5 minutes,"
-    # not a hard guarantee. See cone/project/architecture/OVERVIEW.md.
-    - cron: "*/5 * * * *"
+    # Once daily, 06:00 UTC. Deliberately infrequent — scraping every few minutes
+    # is unnecessarily aggressive for dealer sites that update prices at most once
+    # a day. See cone/project/architecture/OVERVIEW.md.
+    - cron: "0 6 * * *"
   workflow_dispatch: {}
 
 jobs:

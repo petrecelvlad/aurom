@@ -3,7 +3,7 @@
  * {
  *   "role": "SERVICE",
  *   "constraints": ["React custom hook", "Client-side data fetching"],
- *   "agent_instructions": "Fetches the live BNR gold benchmark rate on mount, then silently every 60s, from /api/benchmark/gold."
+ *   "agent_instructions": "Fetches the live BNR gold benchmark rate on mount, then silently every 15 minutes, from /api/benchmark/gold."
  * }
  */
 
@@ -41,8 +41,8 @@ export function useBenchmark() {
     }
 
     fetchBenchmark(false);
-    // Data is refreshed automatically server-side every ~5 minutes (GitHub Actions -> D1).
-    const interval = setInterval(() => fetchBenchmark(true), 60000);
+    // Data is refreshed automatically server-side once a day (GitHub Actions -> D1).
+    const interval = setInterval(() => fetchBenchmark(true), 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 

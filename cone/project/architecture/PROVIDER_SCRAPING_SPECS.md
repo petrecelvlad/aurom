@@ -122,7 +122,7 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 ## 6. Persistence: `D1ProductRepository.ts` / `D1BenchmarkRepository.ts`
 
 **Classes:** implement `IProductRepository` / `IBenchmarkRepository` against Cloudflare D1
-**Called from:** `src/worker.ts` — `saveSnapshot()` from `POST /api/ingest` (write, triggered by `scripts/scrapeAndIngest.ts` via GitHub Actions roughly every 5 minutes), `getAll()` / `getLatest()` once per HTTP request (read-only)
+**Called from:** `src/worker.ts` — `saveSnapshot()` from `POST /api/ingest` (write, triggered by `scripts/scrapeAndIngest.ts` via GitHub Actions once daily), `getAll()` / `getLatest()` once per HTTP request (read-only)
 
 ### Implementation Details:
 *   **`products` / `benchmark`:** Upserted every tick (`INSERT ... ON CONFLICT DO UPDATE`), keyed by `(provider, sku)` and `source` respectively. This *is* the cache now — there is no in-memory or per-request caching layer, because the fetch handler never scrapes; it only ever reads this table.

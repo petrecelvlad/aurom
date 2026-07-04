@@ -21,7 +21,7 @@ To keep the precious metals aggregation engine pure, testable, and robust agains
 
 The write path and the read path run in **two different runtimes** entirely, connected only through D1 and one authenticated HTTP call — they never call each other directly.
 
-**Write path — `scripts/scrapeAndIngest.ts`, run under Node by GitHub Actions every ~5 minutes:**
+**Write path — `scripts/scrapeAndIngest.ts`, run under Node by GitHub Actions once daily:**
 ```
                       +-------------------+
                       |    ENTRY_POINT    | (scripts/scrapeAndIngest.ts — runs under Node,

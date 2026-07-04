@@ -60,9 +60,11 @@ export default function App() {
 
   React.useEffect(() => {
     fetchProducts();
-    // Data is refreshed automatically server-side every ~5 minutes (GitHub Actions -> D1);
-    // this just picks up the latest snapshot without a manual sync action.
-    const interval = setInterval(() => fetchProducts({ silent: true }), 60000);
+    // Data is refreshed automatically server-side once a day (GitHub Actions -> D1);
+    // this just picks up the latest snapshot without a manual sync action. Polling
+    // interval is intentionally much shorter than the refresh cadence, not equal to
+    // it, so a user with the tab open still sees the daily update land promptly.
+    const interval = setInterval(() => fetchProducts({ silent: true }), 15 * 60 * 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
