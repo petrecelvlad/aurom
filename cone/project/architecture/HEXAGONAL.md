@@ -19,14 +19,14 @@ To keep the precious metals aggregation engine pure, testable, and robust agains
 
 ## 🏗️ Structure Overview
 
-The Worker has two separate entry points that never call each other directly — they're connected only through D1.
+The write path and the read path run in **two different runtimes** entirely, connected only through D1 and one authenticated HTTP call — they never call each other directly.
 
-**Write path — `scheduled` handler, runs every 1 minute (Cron Trigger):**
+**Write path — `scripts/scrapeAndIngest.ts`, run under Node by GitHub Actions every ~5 minutes:**
 ```
                       +-------------------+
-                      |    ENTRY_POINT    | (src/worker.ts — scheduled handler)
-                      +---------+---------+
-                                v
+                      |    ENTRY_POINT    | (scripts/scrapeAndIngest.ts — runs under Node,
+                      +---------+---------+  outside Cloudflare entirely — see OVERVIEW.md
+                                v            for why it isn't a Cloudflare Cron Trigger)
                      +---------------------+
                      |       SERVICE       | (ProductAggregatorService)
                      +----------+----------+
@@ -42,7 +42,11 @@ The Worker has two separate entry points that never call each other directly —
       |  ADAPTER  |       |  ADAPTER  |       |  ADAPTER  | (Aurom, Tavex, Avangard,
       +-----------+       +-----------+       +-----------+   Neogold, BCR)
                                 |
-                                v (aggregated products)
+                                v (aggregated products, HTTP POST)
+                      +-------------------+
+                      |    ENTRY_POINT    | (src/worker.ts — POST /api/ingest,
+                      +---------+---------+  authenticated by shared secret)
+                                v
                       +-------------------+
                       |       PORT        | (IProductRepository / IBenchmarkRepository)
                       +---------+---------+
@@ -54,7 +58,7 @@ The Worker has two separate entry points that never call each other directly —
                               [ D1 ]
 ```
 
-**Read path — `fetch` handler, one per HTTP request:**
+**Read path — `fetch` handler, one per HTTP request, runs in the Worker:**
 ```
                       +-------------------+
                       |      CLIENT       | (React SPA, served by Workers Static Assets —
@@ -76,6 +80,8 @@ The Worker has two separate entry points that never call each other directly —
                               [ D1 ]
 ```
 
+Note that `src/worker.ts` appears in **both** diagrams but never imports scraper code — the ingest route only receives already-scraped JSON over HTTP and validates/persists it. This is what keeps the Worker's own CPU cost low regardless of how much scraping work happens upstream.
+
 ---
 
 ## 🧬 Core Architecture Pillars
@@ -86,11 +92,12 @@ The Worker has two separate entry points that never call each other directly —
     *   Pure mathematical/logical transformations.
     -   Encapsulates fine-weight calculations, unit weight parsing, and Romanian price-string parsing.
 3.  **Ports (`/src/domain/IScraperStrategy.ts`, `/src/domain/IProductRepository.ts`, `/src/domain/IBenchmarkRepository.ts`)**:
-    *   `IScraperStrategy` defines the contract between the aggregator orchestrator and individual dealer scrapers — guarantees scrapers are swappable.
-    *   `IProductRepository` / `IBenchmarkRepository` define the contract between the Worker's entry points and persistence — guarantees D1 could be swapped for another store without touching the scheduled/fetch handlers.
+    *   `IScraperStrategy` defines the contract between the aggregator orchestrator and individual dealer scrapers — guarantees scrapers are swappable, and lets `scripts/scrapeAndIngest.ts` (Node) reuse the exact same scraper classes the Worker would use if it ever scraped directly.
+    *   `IProductRepository` / `IBenchmarkRepository` define the contract between D1 and whatever calls it (the Worker's `/api/*` routes) — guarantees D1 could be swapped for another store without touching those routes.
 4.  **Adapters (`/src/infrastructure/scrapers/`, `/src/infrastructure/db/`, `/src/infrastructure/benchmark/`)**:
     *   Scraper implementations parse specific dealer HTML/JSON/PDF (Cheerio, unpdf) and return raw products normalized by the service.
     *   `D1ProductRepository` / `D1BenchmarkRepository` implement the repository ports against Cloudflare D1.
-5.  **Composition / Orchestration (`/src/application/ProductAggregatorService.ts`, `/src/worker.ts`)**:
+5.  **Composition / Orchestration (`/src/application/ProductAggregatorService.ts`, `scripts/scrapeAndIngest.ts`, `/src/worker.ts`)**:
     *   `ProductAggregatorService` orchestrates the scraping processes and performs post-scraping price normalization and markup calculations.
-    *   `src/worker.ts` is the Composition Root — it wires scrapers, the aggregator, and repositories together, and is the only place that instantiates concrete adapters.
+    *   `scripts/scrapeAndIngest.ts` is the Composition Root for scraping — it wires scrapers to the aggregator and POSTs the result onward. It never touches D1 directly.
+    *   `src/worker.ts` is the Composition Root for persistence and serving — it wires the repository ports to D1, and is the only place that instantiates D1 adapters. It never instantiates a scraper.
