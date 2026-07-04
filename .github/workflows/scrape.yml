@@ -1,0 +1,27 @@
+name: Scrape and Ingest
+
+on:
+  schedule:
+    # GitHub Actions' practical minimum granularity is 5 minutes, and even then
+    # the schedule can slip under load — treat this as "about every 5 minutes,"
+    # not a hard guarantee. See cone/project/architecture/OVERVIEW.md.
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - run: npx tsx scripts/scrapeAndIngest.ts
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          INGEST_SECRET: ${{ secrets.INGEST_SECRET }}

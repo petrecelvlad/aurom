@@ -3,51 +3,33 @@
  * {
  *   "role": "ENTRY_POINT",
  *   "constraints": [
- *     "Composition Root — instantiates scrapers and repositories",
- *     "fetch handler is read-only against D1 — it must never trigger a live scrape",
- *     "scheduled handler is the only thing that writes to D1",
+ *     "Composition Root for persistence — instantiates repositories only, never scrapers",
+ *     "GET routes are read-only against D1 — never trigger a live scrape",
+ *     "POST /api/ingest is the only thing that writes to D1, and requires the INGEST_SECRET header",
  *     "Non-/api/* requests never reach this file — Workers Static Assets serves them first (see wrangler.jsonc)"
  *   ],
- *   "agent_instructions": "This replaces the old Express server.ts. The scheduled handler runs every minute (see wrangler.jsonc crons) and is the sole writer to D1; the fetch handler only ever reads the last snapshot."
+ *   "agent_instructions": "Scraping does not happen in this Worker at all (Free plan's 10ms CPU limit can't fit 5 scrapers + PDF parsing in one invocation). scripts/scrapeAndIngest.ts runs the actual scrapers from GitHub Actions on a schedule and POSTs the result here. Do not import scraper/cheerio/unpdf code into this file — that would defeat the point of moving the compute out."
  * }
  */
 
 import { Hono } from 'hono';
-import { ProductAggregatorService } from './application/ProductAggregatorService';
-import { TavexScraper } from './infrastructure/scrapers/TavexScraper';
-import { AuromScraper } from './infrastructure/scrapers/AuromScraper';
-import { AvangardScraper } from './infrastructure/scrapers/AvangardScraper';
-import { NeogoldScraper } from './infrastructure/scrapers/NeogoldScraper';
-import { BCRScraper } from './infrastructure/scrapers/BCRScraper';
+import { z } from 'zod';
+import { ProductSchema } from './domain/Product';
 import { D1ProductRepository } from './infrastructure/db/D1ProductRepository';
 import { D1BenchmarkRepository } from './infrastructure/db/D1BenchmarkRepository';
-import { fetchBnrGoldRate } from './infrastructure/benchmark/BnrBenchmarkClient';
 
-async function runScrapeAndPersist(env: Env): Promise<void> {
-  const aggregator = new ProductAggregatorService();
-  aggregator.registerScraper(new TavexScraper());
-  aggregator.registerScraper(new AuromScraper());
-  aggregator.registerScraper(new AvangardScraper());
-  aggregator.registerScraper(new NeogoldScraper());
-  aggregator.registerScraper(new BCRScraper());
+const BenchmarkRateSchema = z.object({
+  source: z.string(),
+  metal: z.string(),
+  date: z.string(),
+  price: z.number(),
+  currency: z.string(),
+});
 
-  const productRepo = new D1ProductRepository(env.DB);
-  const benchmarkRepo = new D1BenchmarkRepository(env.DB);
-
-  const [products, benchmark] = await Promise.all([
-    aggregator.aggregateAll(),
-    fetchBnrGoldRate(),
-  ]);
-
-  await productRepo.saveSnapshot(products);
-  if (benchmark) {
-    await benchmarkRepo.saveSnapshot(benchmark);
-  }
-
-  console.log(
-    `Snapshot saved: ${products.length} products, benchmark ${benchmark ? `updated (${benchmark.price} RON)` : 'unavailable this tick'}`
-  );
-}
+const IngestPayloadSchema = z.object({
+  products: z.array(ProductSchema),
+  benchmark: BenchmarkRateSchema.nullable().optional(),
+});
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -66,10 +48,27 @@ app.get('/api/benchmark/gold', async c => {
   return c.json(rate);
 });
 
-export default {
-  fetch: app.fetch,
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    console.log('Cron tick:', controller.cron, new Date(controller.scheduledTime).toISOString());
-    ctx.waitUntil(runScrapeAndPersist(env));
-  },
-};
+app.post('/api/ingest', async c => {
+  const secret = c.req.header('X-Ingest-Secret');
+  if (!secret || secret !== c.env.INGEST_SECRET) {
+    return c.json({ detail: 'Unauthorized' }, 401);
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = IngestPayloadSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ detail: 'Invalid ingest payload', issues: parsed.error.issues }, 400);
+  }
+
+  const productRepo = new D1ProductRepository(c.env.DB);
+  await productRepo.saveSnapshot(parsed.data.products);
+
+  if (parsed.data.benchmark) {
+    const benchmarkRepo = new D1BenchmarkRepository(c.env.DB);
+    await benchmarkRepo.saveSnapshot(parsed.data.benchmark);
+  }
+
+  return c.json({ ok: true, productsIngested: parsed.data.products.length });
+});
+
+export default app;
