@@ -18,8 +18,9 @@ export function useProducts() {
   const [hasSynced, setHasSynced] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  const fetchProducts = async () => {
-    setIsLoading(true);
+  const fetchProducts = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setIsLoading(true);
     setError(null);
     try {
       const client = new ProductClient();
@@ -32,7 +33,7 @@ export function useProducts() {
       const message = err instanceof Error ? err.message : 'A apărut o eroare necunoscută la preluarea datelor.';
       setError(message);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 

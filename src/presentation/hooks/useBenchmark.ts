@@ -3,7 +3,7 @@
  * {
  *   "role": "SERVICE",
  *   "constraints": ["React custom hook", "Client-side data fetching"],
- *   "agent_instructions": "Fetches the live BNR gold benchmark rate once on mount from /api/benchmark/gold."
+ *   "agent_instructions": "Fetches the live BNR gold benchmark rate on mount, then silently every 60s, from /api/benchmark/gold."
  * }
  */
 
@@ -22,9 +22,9 @@ export function useBenchmark() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchBenchmark() {
+    async function fetchBenchmark(silent: boolean) {
       try {
-        setIsLoading(true);
+        if (!silent) setIsLoading(true);
         const response = await fetch('/api/benchmark/gold');
         if (!response.ok) {
           throw new Error(`Failed to fetch benchmark: HTTP ${response.status}`);
@@ -36,11 +36,14 @@ export function useBenchmark() {
         const message = err instanceof Error ? err.message : 'Error fetching benchmark';
         setError(message);
       } finally {
-        setIsLoading(false);
+        if (!silent) setIsLoading(false);
       }
     }
 
-    fetchBenchmark();
+    fetchBenchmark(false);
+    // Data is refreshed automatically server-side every ~5 minutes (GitHub Actions -> D1).
+    const interval = setInterval(() => fetchBenchmark(true), 60000);
+    return () => clearInterval(interval);
   }, []);
 
   return { benchmark, isLoading, error };

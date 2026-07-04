@@ -129,7 +129,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
               <tr>
                 <td colSpan={8}>
                   <div className="p-6 text-center text-[#8E8E93] text-xs">
-                    Apasă pe "Sincronizare" pentru a prelua cele mai recente date.
+                    Nu s-au putut încărca datele. Încearcă din nou folosind butonul de mai sus.
                   </div>
                 </td>
               </tr>

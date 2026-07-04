@@ -60,6 +60,10 @@ export default function App() {
 
   React.useEffect(() => {
     fetchProducts();
+    // Data is refreshed automatically server-side every ~5 minutes (GitHub Actions -> D1);
+    // this just picks up the latest snapshot without a manual sync action.
+    const interval = setInterval(() => fetchProducts({ silent: true }), 60000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -174,7 +178,7 @@ export default function App() {
 
   return (
     <div className="w-full h-screen max-h-screen overflow-hidden p-2 flex flex-col bg-[#0F0F10] text-[#D1D1D6] font-sans">
-      {/* BAR 1: Top Navigation Bar (Logo, Metal Selector Tabs, Benchmark & Sync Button) */}
+      {/* BAR 1: Top Navigation Bar (Logo, Metal Selector Tabs, Benchmark) */}
       <header className="flex-none bg-[#0F0F10] border-b border-[#2C2C2E] py-1 px-2 flex flex-row flex-wrap items-center justify-between gap-4 select-none mb-2">
         <div className="flex items-center gap-6">
           {/* Logo */}
@@ -227,28 +231,16 @@ export default function App() {
           </div>
         </div>
 
-        {/* Price & Sync trigger in same row */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 text-right">
-            {isBenchmarkLoading ? (
-              <div className="h-[12px] w-20 bg-[#2C2C2E] animate-pulse rounded"></div>
-            ) : benchmark ? (
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-[#8E8E93]">Ref BNR:</span>
-                <span className="font-mono text-[#D4AF37] font-bold">{benchmark.price.toFixed(2)} RON / g</span>
-              </div>
-            ) : null}
-          </div>
-          
-          <button 
-            onClick={fetchProducts}
-            disabled={isLoading}
-            className="px-2.5 py-1.5 bg-[#D4AF37] hover:bg-[#C5A028] text-[#0F0F10] font-bold text-[10px] uppercase tracking-widest transition-colors rounded-sm flex justify-center items-center gap-1.5 disabled:bg-[#48484A] disabled:text-[#8E8E93] disabled:cursor-not-allowed whitespace-nowrap shadow-md cursor-pointer"
-            aria-label={isLoading ? "Se sincronizează..." : "Sincronizează Prețurile"}
-          >
-            {isLoading && <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>}
-            <span>{isLoading ? 'Sincronizare' : 'Sincronizează'}</span>
-          </button>
+        {/* Live BNR benchmark rate */}
+        <div className="flex items-center gap-3 text-right">
+          {isBenchmarkLoading ? (
+            <div className="h-[12px] w-20 bg-[#2C2C2E] animate-pulse rounded"></div>
+          ) : benchmark ? (
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-[#8E8E93]">Ref BNR:</span>
+              <span className="font-mono text-[#D4AF37] font-bold">{benchmark.price.toFixed(2)} RON / g</span>
+            </div>
+          ) : null}
         </div>
       </header>
 
