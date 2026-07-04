@@ -3,13 +3,17 @@
  * {
  *   "role": "UI_COMPONENT",
  *   "constraints": ["React component", "Render-only table", "Strict styling guidelines"],
- *   "agent_instructions": "Renders a high-fidelity tabular bento block (Bar 3) displaying precious metal listings, employing scarce semantic color highlights for extreme valuations to avoid Rainbow Dashboard noise."
+ *   "agent_instructions": "Renders a high-fidelity tabular bento block (Bar 3) displaying precious metal listings, employing scarce semantic color highlights for extreme valuations to avoid Rainbow Dashboard noise. PROVIDERS_LINK_OUT_ONLY exists for legal reasons (their ToS explicitly prohibits reproducing/publishing prices) — do not remove without checking with the user first."
  * }
  */
 
 import React, { useMemo } from 'react';
 import { EnrichedProduct } from '../../types';
 import { formatPrice } from '../utils/formatters';
+
+// These providers' Terms of Service explicitly prohibit reproducing/publishing their prices.
+// Pending explicit permission, we link out to their site instead of displaying the scraped number.
+const PROVIDERS_LINK_OUT_ONLY = ['Avangard Gold', 'Neogold'];
 
 export type SortConfig = {
   key: keyof EnrichedProduct;
@@ -159,6 +163,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
               const buyBadgeClass = getExtremeBadgeStyle(product.buy_price_per_g_ron, buyPerGValues, true); // higher is better
               const markupBadgeClass = getExtremeBadgeStyle(product.markup_percentage, markupValues, false); // lower is better
               const isInStock = product.stock_status.toLowerCase().includes('in stoc');
+              const isLinkOutOnly = PROVIDERS_LINK_OUT_ONLY.includes(product.provider);
 
               return (
                 <tr 
@@ -188,27 +193,42 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
                   <td className="px-2 py-1.5 text-center font-mono text-xs text-[#8E8E93] whitespace-nowrap">
                     {product.weight_g !== null ? parseFloat(product.weight_g.toFixed(2)) : '-'}
                   </td>
-                  <td className="px-2 py-1.5 text-center font-mono text-xs text-white whitespace-nowrap">
-                    {formatPrice(product.buy_price_ron)}
-                  </td>
-                  <td className="px-2 py-1.5 text-center font-mono text-xs text-white whitespace-nowrap">
-                    {formatPrice(product.sell_price_ron)}
-                  </td>
-                  <td className="px-2 py-1.5 text-center whitespace-nowrap">
-                    <span className={buyBadgeClass}>
-                      {formatPrice(product.buy_price_per_g_ron)}
-                    </span>
-                  </td>
-                  <td className="px-2 py-1.5 text-center whitespace-nowrap">
-                    <span className={sellBadgeClass}>
-                      {formatPrice(product.sell_price_per_g_ron)}
-                    </span>
-                  </td>
-                  <td className="px-2 py-1.5 text-center whitespace-nowrap">
-                    <span className={markupBadgeClass}>
-                      {product.markup_percentage !== null ? `${product.markup_percentage > 0 ? '+' : ''}${product.markup_percentage.toFixed(2)}%` : '-'}
-                    </span>
-                  </td>
+                  {isLinkOutOnly ? (
+                    <td colSpan={5} className="px-2 py-1.5 text-center">
+                      <a
+                        href={product.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-[#8E8E93] hover:text-[#D4AF37] uppercase tracking-wider underline whitespace-nowrap"
+                      >
+                        Vezi preț pe site →
+                      </a>
+                    </td>
+                  ) : (
+                    <>
+                      <td className="px-2 py-1.5 text-center font-mono text-xs text-white whitespace-nowrap">
+                        {formatPrice(product.buy_price_ron)}
+                      </td>
+                      <td className="px-2 py-1.5 text-center font-mono text-xs text-white whitespace-nowrap">
+                        {formatPrice(product.sell_price_ron)}
+                      </td>
+                      <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                        <span className={buyBadgeClass}>
+                          {formatPrice(product.buy_price_per_g_ron)}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                        <span className={sellBadgeClass}>
+                          {formatPrice(product.sell_price_per_g_ron)}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1.5 text-center whitespace-nowrap">
+                        <span className={markupBadgeClass}>
+                          {product.markup_percentage !== null ? `${product.markup_percentage > 0 ? '+' : ''}${product.markup_percentage.toFixed(2)}%` : '-'}
+                        </span>
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })}
