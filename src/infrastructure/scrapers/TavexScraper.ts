@@ -14,7 +14,7 @@ import * as cheerio from 'cheerio';
 import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
-import { fetchWithTimeout } from './httpClient';
+import { fetchWithTimeout, politeDelay } from './httpClient';
 
 export class TavexScraper implements IScraperStrategy {
   get providerName(): string {
@@ -32,7 +32,9 @@ export class TavexScraper implements IScraperStrategy {
 
     const results: StandardizedProduct[] = [];
 
-    for (const url of urls) {
+    for (const [index, url] of urls.entries()) {
+      if (index > 0) await politeDelay();
+
       try {
         console.log(`Scraping Tavex category page: ${url}`);
         const response = await fetchWithTimeout(url, { headers });

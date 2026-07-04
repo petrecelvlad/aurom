@@ -16,7 +16,7 @@ import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
 import { PriceParser } from '../../domain/PriceParser';
-import { fetchWithTimeout } from './httpClient';
+import { fetchWithTimeout, politeDelay } from './httpClient';
 
 export class NeogoldScraper implements IScraperStrategy {
   get providerName(): string {
@@ -47,7 +47,9 @@ export class NeogoldScraper implements IScraperStrategy {
 
     const uniqueProducts = new Map<string, StandardizedProduct>();
 
-    for (const url of categories) {
+    for (const [index, url] of categories.entries()) {
+      if (index > 0) await politeDelay();
+
       try {
         console.log(`Scraping Neogold category: ${url}`);
         const response = await fetchWithTimeout(url, { headers });

@@ -15,7 +15,7 @@ import { IScraperStrategy } from '../../domain/IScraperStrategy';
 import { StandardizedProduct, ProductSchema, detectMetal } from '../../domain/Product';
 import { WeightConverter } from '../../domain/WeightConverter';
 import { PriceParser } from '../../domain/PriceParser';
-import { fetchWithTimeout } from './httpClient';
+import { fetchWithTimeout, politeDelay } from './httpClient';
 
 export class AuromScraper implements IScraperStrategy {
   get providerName(): string {
@@ -32,10 +32,12 @@ export class AuromScraper implements IScraperStrategy {
     // We will scrape the first 10 pages of the shop to list standard investment items.
     // If we hit a page with 0 products or a 404, we stop.
     for (let page = 1; page <= 10; page++) {
-      const url = page === 1 
-        ? 'https://aurominvestment.ro/shop/' 
+      const url = page === 1
+        ? 'https://aurominvestment.ro/shop/'
         : `https://aurominvestment.ro/shop/page/${page}/`;
-      
+
+      if (page > 1) await politeDelay();
+
       try {
         console.log(`Scraping Aurom page ${page}: ${url}`);
         const response = await fetchWithTimeout(url, { headers });
