@@ -30,6 +30,8 @@ This document catalogs the exact extraction mechanisms, endpoints, API interface
 
 ## 2. Avangard Gold (`AvangardScraper.ts`)
 
+**⏸️ PAUSED as of 2026-07-04** — not registered in `scripts/scrapeAndIngest.ts`. Avangard's Terms of Service explicitly prohibit automated access via scripts. Outreach was sent asking permission; re-enable only after an explicit yes, or after the user makes an informed decision to accept the risk. Existing rows already in D1 from before the pause are still served (and shown as a link-out, not a price, per `PROVIDERS_LINK_OUT_ONLY` in `ProductTable.tsx`), but they will never refresh until the scraper is re-registered.
+
 **Class:** `AvangardScraper` implements `IScraperStrategy`
 **Target URLs:** `https://avangardgold.ro/products.json?limit=250` (Shopify JSON API)
 **Library:** `fetch` (Workers-native, via `fetchWithTimeout`)
