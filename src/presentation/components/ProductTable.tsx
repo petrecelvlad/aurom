@@ -3,7 +3,7 @@
  * {
  *   "role": "UI_COMPONENT",
  *   "constraints": ["React component", "Render-only table", "Strict styling guidelines"],
- *   "agent_instructions": "Renders a high-fidelity tabular bento block (Bar 3) displaying precious metal listings, employing scarce semantic color highlights for extreme valuations to avoid Rainbow Dashboard noise. PROVIDERS_LINK_OUT_ONLY is currently empty by the user's informed choice, despite real ToS conflicts found for Avangard Gold and Neogold (see PROVIDER_SCRAPING_SPECS.md) — the mechanism is kept in place in case either provider objects and it needs to be reapplied."
+ *   "agent_instructions": "Renders a high-fidelity tabular bento block (Bar 3) displaying precious metal listings. Cumparare/g and Vanzare/g badges highlight only the best/worst extreme (getExtremeBadgeStyle) to avoid Rainbow Dashboard noise; Adaos is a deliberate exception, by explicit user request — it uses a continuous green-to-red spectrum across every row (getMarkupSpectrumStyle), not just the extremes. PROVIDERS_LINK_OUT_ONLY is currently empty by the user's informed choice, despite real ToS conflicts found for Avangard Gold and Neogold (see PROVIDER_SCRAPING_SPECS.md) — the mechanism is kept in place in case either provider objects and it needs to be reapplied."
  * }
  */
 
@@ -56,6 +56,29 @@ const getExtremeBadgeStyle = (
   }
 
   return 'text-[#8E8E93] font-mono text-xs';
+};
+
+/**
+ * Continuous green -> yellow -> red spectrum across every row, not just the two
+ * extremes. Used only for the Adaos (markup) column, by explicit request — lower
+ * markup is better, so the lowest value in view gets green, the highest gets red,
+ * and everything between is interpolated.
+ */
+const getMarkupSpectrumStyle = (value: number | null, values: number[]): React.CSSProperties => {
+  if (value === null || values.length === 0) return { color: '#D1D1D6' };
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return { color: '#D1D1D6' };
+
+  const t = (value - min) / (max - min); // 0 = lowest/best markup, 1 = highest/worst
+  const hue = 120 * (1 - t); // 120 green -> 60 yellow -> 0 red
+
+  return {
+    color: `hsl(${hue}, 75%, 62%)`,
+    backgroundColor: `hsla(${hue}, 75%, 62%, 0.12)`,
+    borderColor: `hsla(${hue}, 75%, 62%, 0.35)`,
+  };
 };
 
 const getProviderPill = (providerName: string) => {
@@ -117,14 +140,14 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
       <div className="flex-grow overflow-auto scrollbar-thin">
         <table className={`w-full text-left border-collapse transition-opacity duration-200 ${isLoading && hasSynced ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           <thead className="sticky top-0 z-30 bg-[#2C2C2E] shadow-sm select-none">
-            <tr className="bg-[#2C2C2E] text-[10px] uppercase tracking-widest font-bold text-[#8E8E93] select-none">
-              <HeaderCell columnKey="name" label="Descriere Produs" className="w-full sm:w-auto min-w-[180px]" />
-              <HeaderCell columnKey="karats" label="Carate" className="text-center" />
-              <HeaderCell columnKey="weight_g" label="Greutate (g)" className="text-center" />
-              <HeaderCell columnKey="buy_price_ron" label="Cumpărare" className="text-center" tooltipText="Prețul brut oferit de dealer pentru răscumpărarea produsului (RON)." />
-              <HeaderCell columnKey="sell_price_ron" label="Vânzare" className="text-center" tooltipText="Prețul brut la care dealerul vinde acest produs fizic (RON)." />
-              <HeaderCell columnKey="buy_price_per_g_ron" label="Cump./g" className="text-center" tooltipText="Prețul de achiziție al dealerului calculat per gram de metal fin pur (RON)." />
-              <HeaderCell columnKey="sell_price_per_g_ron" label="Vânz./g" className="text-center text-[#D4AF37]" tooltipText="Prețul de vânzare al dealerului calculat per gram de metal fin pur (RON)." />
+            <tr className="bg-[#2C2C2E] text-xs uppercase tracking-widest font-bold text-white select-none">
+              <HeaderCell columnKey="name" label="Descriere Produs" className="w-full sm:w-auto min-w-[180px] text-white" />
+              <HeaderCell columnKey="karats" label="Carate" className="text-center text-[#D4AF37]" />
+              <HeaderCell columnKey="weight_g" label="Greutate (g)" className="text-center text-white" />
+              <HeaderCell columnKey="buy_price_ron" label="Cumpărare (Lei)" className="text-center text-[#2DD4BF]" tooltipText="Prețul brut oferit de dealer pentru răscumpărarea produsului (RON)." />
+              <HeaderCell columnKey="sell_price_ron" label="Vânzare (Lei)" className="text-center text-white" tooltipText="Prețul brut la care dealerul vinde acest produs fizic (RON)." />
+              <HeaderCell columnKey="buy_price_per_g_ron" label="Cumpărare/g (Lei)" className="text-center text-[#2DD4BF]" tooltipText="Prețul de achiziție al dealerului calculat per gram de metal fin pur (RON)." />
+              <HeaderCell columnKey="sell_price_per_g_ron" label="Vânzare/g (Lei)" className="text-center text-[#D4AF37]" tooltipText="Prețul de vânzare al dealerului calculat per gram de metal fin pur (RON)." />
               <HeaderCell columnKey="markup_percentage" label="Adaos" className="text-center text-[#D4AF37]" tooltipText="Procentul adăugat de dealer peste cursul BNR de referință. Valori mai mici reflectă o investiție mai profitabilă." />
             </tr>
           </thead>
@@ -161,7 +184,7 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
             {hasSynced && products.map((product, index) => {
               const sellBadgeClass = getExtremeBadgeStyle(product.sell_price_per_g_ron, sellPerGValues, false); // lower is better
               const buyBadgeClass = getExtremeBadgeStyle(product.buy_price_per_g_ron, buyPerGValues, true); // higher is better
-              const markupBadgeClass = getExtremeBadgeStyle(product.markup_percentage, markupValues, false); // lower is better
+              const markupSpectrumStyle = getMarkupSpectrumStyle(product.markup_percentage, markupValues); // full green-to-red spectrum, not just extremes
               const isInStock = product.stock_status.toLowerCase().includes('in stoc');
               const isLinkOutOnly = PROVIDERS_LINK_OUT_ONLY.includes(product.provider);
 
@@ -223,7 +246,10 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
                         </span>
                       </td>
                       <td className="px-2 py-1.5 text-center whitespace-nowrap">
-                        <span className={markupBadgeClass}>
+                        <span
+                          className="inline-block px-2 py-0.5 rounded-sm border font-bold text-[11px] select-all"
+                          style={markupSpectrumStyle}
+                        >
                           {product.markup_percentage !== null ? `${product.markup_percentage > 0 ? '+' : ''}${product.markup_percentage.toFixed(2)}%` : '-'}
                         </span>
                       </td>
