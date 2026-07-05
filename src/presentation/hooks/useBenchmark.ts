@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../infrastructure/api/config';
 
 export interface BenchmarkData {
   date: string;
@@ -25,7 +26,7 @@ export function useBenchmark() {
     async function fetchBenchmark(silent: boolean) {
       try {
         if (!silent) setIsLoading(true);
-        const response = await fetch('/api/benchmark/gold');
+        const response = await fetch(`${API_BASE_URL}/api/benchmark/gold`);
         if (!response.ok) {
           throw new Error(`Failed to fetch benchmark: HTTP ${response.status}`);
         }

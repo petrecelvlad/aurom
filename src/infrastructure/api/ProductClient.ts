@@ -8,6 +8,7 @@
  */
 
 import { StandardizedProduct } from '../../types';
+import { API_BASE_URL } from './config';
 
 interface ScrapeAllResponse {
   data?: StandardizedProduct[];
@@ -16,7 +17,7 @@ interface ScrapeAllResponse {
 
 export class ProductClient {
   async fetchAllProducts(): Promise<StandardizedProduct[]> {
-    const response = await fetch('/api/scrape/all');
+    const response = await fetch(`${API_BASE_URL}/api/scrape/all`);
     const result = (await response.json()) as ScrapeAllResponse;
 
     if (!response.ok) {

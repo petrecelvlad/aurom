@@ -13,6 +13,7 @@
  */
 
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { z } from 'zod';
 import { ProductSchema } from './domain/Product';
 import { D1ProductRepository } from './infrastructure/db/D1ProductRepository';
@@ -32,6 +33,13 @@ const IngestPayloadSchema = z.object({
 });
 
 const app = new Hono<{ Bindings: Env }>();
+
+// Public read-only routes — CORS-enabled so the GitHub Pages static mirror (no backend
+// of its own) can call this Worker cross-origin. No cookies/auth involved, so an open
+// origin here introduces no new exposure; POST /api/ingest is untouched and still
+// gated by INGEST_SECRET regardless (CORS is a browser-only mechanism).
+app.use('/api/scrape/*', cors());
+app.use('/api/benchmark/*', cors());
 
 app.get('/api/scrape/all', async c => {
   const repo = new D1ProductRepository(c.env.DB);
