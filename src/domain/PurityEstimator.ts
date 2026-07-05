@@ -19,12 +19,43 @@ export interface PurityInfo {
 export class PurityEstimator {
   private static readonly OZ_TO_G = 31.1034768;
 
+  // Named face-value coins (Austrian Crown/Corona, Gulden, Ducat, Maria Theresa Taler) carry no
+  // weight in their product name at all — the leading digit is a denomination, not a weight — and
+  // some sources (e.g. Münze Österreich's own listing pages) give no weight metadata either. These
+  // are matched and resolved directly by name, ahead of (and independent of) the weightG-range
+  // detection below, which only applies when a source-provided gross weight is available.
+  private static readonly HISTORICAL_COIN_SPECS: ReadonlyArray<{
+    pattern: RegExp;
+    purity: number;
+    karats: number | null;
+    fineWeightG: number;
+  }> = [
+    { pattern: /^100\s+(crown|corona|coroane)\b/, purity: 0.900, karats: 21.6, fineWeightG: 30.48 },
+    { pattern: /^20\s+(crown|corona|coroane)\b/, purity: 0.900, karats: 21.6, fineWeightG: 6.097 },
+    { pattern: /^10\s+(crown|corona|coroane)\b/, purity: 0.900, karats: 21.6, fineWeightG: 3.048 },
+    // 8 Gulden / 4 Gulden are the same physical coins as 20 Corona / 10 Corona under their older dual-currency name
+    { pattern: /^8\s+gulden\b/, purity: 0.900, karats: 21.6, fineWeightG: 6.097 },
+    { pattern: /^4\s+gulden\b/, purity: 0.900, karats: 21.6, fineWeightG: 3.048 },
+    { pattern: /^4\s+ducat/, purity: 0.986, karats: 23.68, fineWeightG: 13.77 },
+    { pattern: /^1\s+ducat/, purity: 0.986, karats: 23.68, fineWeightG: 3.442 },
+    { pattern: /maria\s+theresa|maria\s+theresia/, purity: 0.833, karats: null, fineWeightG: 23.39 },
+  ];
+
   public static estimate(
     name: string,
     weightG: number | null,
     metal: 'Gold' | 'Silver' | 'Platinum' | 'Palladium'
   ): PurityInfo {
-    const nameLower = name.toLowerCase();
+    const nameLower = name.toLowerCase().trim();
+
+    const historicalMatch = this.HISTORICAL_COIN_SPECS.find(spec => spec.pattern.test(nameLower));
+    if (historicalMatch) {
+      return {
+        purity: historicalMatch.purity,
+        karats: historicalMatch.karats,
+        fineWeightG: historicalMatch.fineWeightG,
+      };
+    }
 
     // Default values
     let purity = 1.0;

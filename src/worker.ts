@@ -28,7 +28,7 @@ const BenchmarkRateSchema = z.object({
 
 const IngestPayloadSchema = z.object({
   products: z.array(ProductSchema),
-  benchmark: BenchmarkRateSchema.nullable().optional(),
+  benchmarks: z.array(BenchmarkRateSchema).optional(),
 });
 
 const app = new Hono<{ Bindings: Env }>();
@@ -42,6 +42,15 @@ app.get('/api/scrape/all', async c => {
 app.get('/api/benchmark/gold', async c => {
   const repo = new D1BenchmarkRepository(c.env.DB);
   const rate = await repo.getLatest('BNR');
+  if (!rate) {
+    return c.json({ detail: 'Benchmark not yet available' }, 404);
+  }
+  return c.json(rate);
+});
+
+app.get('/api/benchmark/eur', async c => {
+  const repo = new D1BenchmarkRepository(c.env.DB);
+  const rate = await repo.getLatest('BNR_EUR');
   if (!rate) {
     return c.json({ detail: 'Benchmark not yet available' }, 404);
   }
@@ -63,9 +72,11 @@ app.post('/api/ingest', async c => {
   const productRepo = new D1ProductRepository(c.env.DB);
   await productRepo.saveSnapshot(parsed.data.products);
 
-  if (parsed.data.benchmark) {
+  if (parsed.data.benchmarks && parsed.data.benchmarks.length > 0) {
     const benchmarkRepo = new D1BenchmarkRepository(c.env.DB);
-    await benchmarkRepo.saveSnapshot(parsed.data.benchmark);
+    for (const rate of parsed.data.benchmarks) {
+      await benchmarkRepo.saveSnapshot(rate);
+    }
   }
 
   return c.json({ ok: true, productsIngested: parsed.data.products.length });

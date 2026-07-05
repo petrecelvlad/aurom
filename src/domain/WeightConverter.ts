@@ -60,8 +60,8 @@ export class WeightConverter {
       return parseFloat((parseFloat(ozMatch[1].replace(',', '.')) * this.OZ_TO_G).toFixed(3));
     }
     
-    // Check for Kilograms (kg)
-    const kgMatch = nameLower.match(/(?<!\/)(\d+(?:[.,]\d+)?)\s*kg\b/);
+    // Check for Kilograms (kg, or "Kilo" as used by Münze Österreich bar names)
+    const kgMatch = nameLower.match(/(?<!\/)(\d+(?:[.,]\d+)?)\s*(?:kg|kilo|kilogram)\b/);
     if (kgMatch) {
       return parseFloat((parseFloat(kgMatch[1].replace(',', '.')) * this.KG_TO_G).toFixed(3));
     }
