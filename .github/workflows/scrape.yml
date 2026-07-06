@@ -11,7 +11,10 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Raised from 5: CelticGold and StoneX Bullion each crawl dozens of paginated
+    # category pages with a polite 1-3s delay between requests, which alone pushed
+    # a full run past the original 5-minute limit.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
