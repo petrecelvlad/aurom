@@ -8,10 +8,11 @@ import * as cheerio from 'cheerio';
  *     "Runs on Odoo's website_sale module (class names prefixed o_wsale_/tp-) — a different platform from every other scraper in this codebase, none of which are WooCommerce/Prestashop conventions",
  *     "Only gold and silver are carried — no platinum/palladium categories exist on this site",
  *     "The 4 CATEGORY_PATHS are each an umbrella \"all weights\" category (e.g. buy-gold-bars-by-weight-18), not per-weight subfolders — pagination via /page/N covers the whole metal+form combination in one crawl",
+ *     "Pagination must stop on raw card presence (extractCardUrls), not on parsed/priced product count — a page can legitimately contain only discontinued no-sell-price cards (real cards, all filtered out by parseCelticGoldCategoryPage) without being the end of the category; stopping on zero PARSED products there truncated gold-coins from ~690 products to a fraction of that (real bug, fixed alongside the -100%-markup one).",
  *     "No sold-out signal was found in recon (no \"out of stock\" text, no missing add-to-cart button on any real physical product) — stock_status defaults to 'In Stock' for every parsed card",
- *     "Uniquely among current scrapers, this dealer publishes a real buy-back price on listing cards (.oe_sellback_price) — the second .oe_currency_value in a card, when present"
+ *     "Uniquely among current scrapers, this dealer publishes a real buy-back price on listing cards (.oe_sellback_price). Sell price (.oe_price) and buyback (.oe_sellback_price) must be read by scoping to each marker's own following .oe_currency_value, never by position (currencyValues[0]/[1]) — some discontinued products carry only a buyback quote and no sell price at all, which a positional read misreads as the sell price (real bug: a 0-EUR sell price rendered as -100% markup)."
  *   ],
- *   "agent_instructions": "convertCelticGoldProductsToRon() is the only place that turns EUR into RON, using the BNR EUR rate. The composition root (scripts/scrapeAndIngest.ts) fetches that rate and calls it before merging into the ingest payload, same pattern as Muenze Österreich and BullionByPost."
+ *   "agent_instructions": "convertCelticGoldProductsToRon() is the only place that turns EUR into RON, using the BNR EUR rate. The composition root (scripts/scrapeAndIngest.ts) fetches that rate and calls it before merging into the ingest payload, same pattern as Muenze Österreich."
  * }
  */
 
@@ -44,6 +45,21 @@ const CATEGORY_PATHS = [
 
 const MAX_PAGES_PER_CATEGORY = 45;
 
+/**
+ * Every card's URL on the page, regardless of whether it has a parseable sell price.
+ * Used purely to detect the true end of pagination (or a repeating "recommended" tail),
+ * independent of how many of those cards turn out to be comparable products.
+ */
+export function extractCelticGoldCardUrls(html: string): string[] {
+  const $ = cheerio.load(html);
+  const urls: string[] = [];
+  $('.tp-product-item a.tp-link-dark').each((_, el) => {
+    const href = $(el).attr('href');
+    if (href) urls.push(new URL(href, BASE_URL).toString());
+  });
+  return urls;
+}
+
 export function parseCelticGoldCategoryPage(html: string): CelticGoldProduct[] {
   const $ = cheerio.load(html);
   const results: CelticGoldProduct[] = [];
@@ -66,13 +82,18 @@ export function parseCelticGoldCategoryPage(html: string): CelticGoldProduct[] {
 
     const { purity, karats, fineWeightG } = PurityEstimator.estimate(name, weightG, metal);
 
-    const currencyValues = card.find('.oe_currency_value');
-    const priceEur = parseFloat($(currencyValues.get(0)).text().replace(/[^\d.]/g, ''));
+    // .oe_currency_value is a CHILD of .oe_price (and separately of .oe_sellback_price),
+    // not a sibling — must scope the search inside each marker, not by position on the
+    // card. Some products (e.g. discontinued coins) carry only a buyback quote and no
+    // sell price at all; scoping correctly makes that case yield NaN (skipped below)
+    // instead of misreading the buyback figure as the sell price (real bug: a 0-EUR
+    // sell price rendered as -100% markup).
+    const priceText = card.find('.oe_price .oe_currency_value').first().text();
+    const priceEur = parseFloat(priceText.replace(/[^\d.]/g, ''));
     if (isNaN(priceEur)) return;
 
-    const buybackPriceEur = currencyValues.length > 1
-      ? parseFloat($(currencyValues.get(1)).text().replace(/[^\d.]/g, ''))
-      : NaN;
+    const buybackText = card.find('.oe_sellback_price .oe_currency_value').first().text();
+    const buybackPriceEur = parseFloat(buybackText.replace(/[^\d.]/g, ''));
 
     const sku = href.split('/').pop()?.split('?')[0] || href;
 
@@ -125,17 +146,21 @@ export class CelticGoldScraper {
           }
 
           const html = await response.text();
-          const pageProducts = parseCelticGoldCategoryPage(html);
+          const cardUrls = extractCelticGoldCardUrls(html);
 
-          const newProducts = pageProducts.filter(p => !seenUrls.has(p.url));
-          if (newProducts.length === 0) {
+          // Stop only when the page truly has nothing new — either no cards at all
+          // (real end of category) or every card is one we've already recorded (the
+          // repeating "recommended" tail seen past the real end). A page full of
+          // fresh-but-unpriced (discontinued) cards must NOT stop pagination — see
+          // the propolis note above.
+          const newCardUrls = cardUrls.filter(u => !seenUrls.has(u));
+          if (newCardUrls.length === 0) {
             break;
           }
+          newCardUrls.forEach(u => seenUrls.add(u));
 
-          for (const product of newProducts) {
-            seenUrls.add(product.url);
-            results.push(product);
-          }
+          const pageProducts = parseCelticGoldCategoryPage(html);
+          results.push(...pageProducts.filter(p => newCardUrls.includes(p.url)));
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           console.error(`Error scraping CelticGold ${url}:`, message);
