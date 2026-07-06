@@ -9,7 +9,7 @@
 
 import React, { useMemo } from 'react';
 import { EnrichedProduct } from '../../types';
-import { formatPrice } from '../utils/formatters';
+import { formatPrice, toDisplayPrice, DisplayCurrency } from '../utils/formatters';
 
 // Avangard Gold and Neogold's Terms of Service explicitly prohibit reproducing/publishing
 // their prices. Left empty by informed user decision (2026-07) despite that conflict.
@@ -26,6 +26,8 @@ interface ProductTableProps {
   isLoading: boolean;
   sortConfig: SortConfig;
   onSort: (key: keyof EnrichedProduct) => void;
+  currency: DisplayCurrency;
+  eurRate: number | null;
 }
 
 /**
@@ -115,7 +117,8 @@ const getProviderPill = (providerName: string) => {
   return 'bg-[#27272A] text-[#A1A1AA] border border-[#3F3F46]';
 };
 
-export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced, isLoading, sortConfig, onSort }) => {
+export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced, isLoading, sortConfig, onSort, currency, eurRate }) => {
+  const currencyLabel = currency === 'EUR' ? 'EUR' : 'Lei';
   const SortIcon = ({ columnKey }: { columnKey: keyof EnrichedProduct }) => {
     if (sortConfig?.key !== columnKey) return <span className="ml-1 opacity-20 inline-block w-3 select-none">↕</span>;
     return <span className="ml-1 text-[#D4AF37] inline-block w-3 select-none">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
@@ -162,10 +165,10 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
               <HeaderCell columnKey="name" label="Descriere Produs" className="w-full sm:w-auto min-w-[180px] text-white" />
               <HeaderCell columnKey="karats" label="Carate" className="text-center text-[#D4AF37]" />
               <HeaderCell columnKey="weight_g" label="Greutate (g)" className="text-center text-white" />
-              <HeaderCell columnKey="buy_price_ron" label="Cumpărare (Lei)" className="text-center text-[#2DD4BF]" tooltipText="Prețul brut oferit de dealer pentru răscumpărarea produsului (RON)." />
-              <HeaderCell columnKey="sell_price_ron" label="Vânzare (Lei)" className="text-center text-white" tooltipText="Prețul brut la care dealerul vinde acest produs fizic (RON)." />
-              <HeaderCell columnKey="buy_price_per_g_ron" label="Cumpărare/g (Lei)" className="text-center text-[#2DD4BF]" tooltipText="Prețul de achiziție al dealerului calculat per gram de metal fin pur (RON)." />
-              <HeaderCell columnKey="sell_price_per_g_ron" label="Vânzare/g (Lei)" className="text-center text-[#D4AF37]" tooltipText="Prețul de vânzare al dealerului calculat per gram de metal fin pur (RON)." />
+              <HeaderCell columnKey="buy_price_ron" label={`Cumpărare (${currencyLabel})`} className="text-center text-[#2DD4BF]" tooltipText={`Prețul brut oferit de dealer pentru răscumpărarea produsului (${currencyLabel}).`} />
+              <HeaderCell columnKey="sell_price_ron" label={`Vânzare (${currencyLabel})`} className="text-center text-white" tooltipText={`Prețul brut la care dealerul vinde acest produs fizic (${currencyLabel}).`} />
+              <HeaderCell columnKey="buy_price_per_g_ron" label={`Cumpărare/g (${currencyLabel})`} className="text-center text-[#2DD4BF]" tooltipText={`Prețul de achiziție al dealerului calculat per gram de metal fin pur (${currencyLabel}).`} />
+              <HeaderCell columnKey="sell_price_per_g_ron" label={`Vânzare/g (${currencyLabel})`} className="text-center text-[#D4AF37]" tooltipText={`Prețul de vânzare al dealerului calculat per gram de metal fin pur (${currencyLabel}).`} />
               <HeaderCell columnKey="markup_percentage" label="Adaos" className="text-center text-[#D4AF37]" tooltipText="Procentul adăugat de dealer peste cursul BNR de referință. Valori mai mici reflectă o investiție mai profitabilă." />
             </tr>
           </thead>
@@ -248,19 +251,19 @@ export const ProductTable: React.FC<ProductTableProps> = ({ products, hasSynced,
                   ) : (
                     <>
                       <td className="px-2 py-1.5 text-center font-mono text-xs text-white whitespace-nowrap">
-                        {formatPrice(product.buy_price_ron)}
+                        {formatPrice(toDisplayPrice(product.buy_price_ron, currency, eurRate), currency)}
                       </td>
                       <td className="px-2 py-1.5 text-center font-mono text-xs text-white whitespace-nowrap">
-                        {formatPrice(product.sell_price_ron)}
+                        {formatPrice(toDisplayPrice(product.sell_price_ron, currency, eurRate), currency)}
                       </td>
                       <td className="px-2 py-1.5 text-center whitespace-nowrap">
                         <span className={buyBadgeClass}>
-                          {formatPrice(product.buy_price_per_g_ron)}
+                          {formatPrice(toDisplayPrice(product.buy_price_per_g_ron, currency, eurRate), currency)}
                         </span>
                       </td>
                       <td className="px-2 py-1.5 text-center whitespace-nowrap">
                         <span className={sellBadgeClass}>
-                          {formatPrice(product.sell_price_per_g_ron)}
+                          {formatPrice(toDisplayPrice(product.sell_price_per_g_ron, currency, eurRate), currency)}
                         </span>
                       </td>
                       <td className="px-2 py-1.5 text-center whitespace-nowrap">

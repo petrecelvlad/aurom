@@ -13,6 +13,7 @@ import { useBenchmark } from './presentation/hooks/useBenchmark';
 import { ProductTable, SortConfig } from './presentation/components/ProductTable';
 import { Toolbar, FilterOption } from './presentation/components/Toolbar';
 import { StandardizedProduct, EnrichedProduct, WeightTier } from './types';
+import { DisplayCurrency, toDisplayPrice } from './presentation/utils/formatters';
 
 type MetalType = 'Gold' | 'Silver' | 'Platinum' | 'Palladium';
 
@@ -33,7 +34,8 @@ const matchWeightTier = (weight: number | null, tier: WeightTier): boolean => {
 
 export default function App() {
   const { products: rawProducts, isLoading, error, hasSynced, lastSyncedAt, fetchProducts } = useProducts();
-  const { benchmark, isLoading: isBenchmarkLoading } = useBenchmark();
+  const { benchmark, eurRate, isLoading: isBenchmarkLoading } = useBenchmark();
+  const [currency, setCurrency] = useState<DisplayCurrency>('RON');
   
   // Enrich raw products with computed Markup percentage
   const products = useMemo<EnrichedProduct[]>(() => {
@@ -233,16 +235,42 @@ export default function App() {
           </div>
         </div>
 
-        {/* Live BNR benchmark rate */}
-        <div className="flex items-center gap-3 text-right">
-          {isBenchmarkLoading ? (
-            <div className="h-[12px] w-20 bg-[#2C2C2E] animate-pulse rounded"></div>
-          ) : benchmark ? (
-            <div className="flex items-center gap-1 text-xs">
-              <span className="text-[#8E8E93]">Ref BNR:</span>
-              <span className="font-mono text-[#D4AF37] font-bold">{benchmark.price.toFixed(2)} RON / g</span>
-            </div>
-          ) : null}
+        <div className="flex items-center gap-3">
+          {/* Currency toggle — switches every price column and the BNR reference below between RON and EUR display */}
+          <div className="flex items-center bg-[#1C1C1E] border border-[#2C2C2E] rounded-sm p-0.5 select-none">
+            {(['RON', 'EUR'] as const).map(option => (
+              <button
+                key={option}
+                onClick={() => setCurrency(option)}
+                className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-colors cursor-pointer outline-none ${
+                  currency === option
+                    ? 'bg-[#D4AF37] text-[#0F0F10]'
+                    : 'text-[#8E8E93] hover:text-white'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
+          {/* Live BNR benchmark rate */}
+          <div className="flex items-center gap-3 text-right">
+            {isBenchmarkLoading ? (
+              <div className="h-[12px] w-20 bg-[#2C2C2E] animate-pulse rounded"></div>
+            ) : benchmark ? (
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-[#8E8E93]">Ref BNR:</span>
+                <span className="font-mono text-[#D4AF37] font-bold">
+                  {(() => {
+                    const displayPrice = toDisplayPrice(benchmark.price, currency, eurRate);
+                    return displayPrice !== null
+                      ? `${displayPrice.toFixed(2)} ${currency} / g`
+                      : 'indisponibil în EUR';
+                  })()}
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -284,12 +312,14 @@ export default function App() {
 
           {/* BAR 3 & Table content */}
           <div className="flex-grow min-h-0">
-            <ProductTable 
-              products={processedProducts} 
-              hasSynced={hasSynced} 
-              isLoading={isLoading} 
+            <ProductTable
+              products={processedProducts}
+              hasSynced={hasSynced}
+              isLoading={isLoading}
               sortConfig={sortConfig}
               onSort={handleSort}
+              currency={currency}
+              eurRate={eurRate}
             />
           </div>
         </div>

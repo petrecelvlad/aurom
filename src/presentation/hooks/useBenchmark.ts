@@ -3,7 +3,7 @@
  * {
  *   "role": "SERVICE",
  *   "constraints": ["React custom hook", "Client-side data fetching"],
- *   "agent_instructions": "Fetches the live BNR gold benchmark rate on mount, then silently every 15 minutes, from /api/benchmark/gold."
+ *   "agent_instructions": "Fetches the live BNR gold benchmark rate and EUR/RON rate on mount, then silently every 15 minutes, from /api/benchmark/gold and /api/benchmark/eur. eurRate is used purely for the RON/EUR display toggle — if it's unavailable (404, e.g. before the first successful scrape tick), eurRate stays null and callers should fall back to RON-only display rather than blocking on it."
  * }
  */
 
@@ -19,6 +19,7 @@ export interface BenchmarkData {
 
 export function useBenchmark() {
   const [benchmark, setBenchmark] = useState<BenchmarkData | null>(null);
+  const [eurRate, setEurRate] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +42,30 @@ export function useBenchmark() {
       }
     }
 
+    async function fetchEurRate() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/benchmark/eur`);
+        if (!response.ok) {
+          setEurRate(null);
+          return;
+        }
+        const data = (await response.json()) as BenchmarkData;
+        setEurRate(data.price);
+      } catch (err) {
+        console.error('Error fetching EUR rate:', err);
+        setEurRate(null);
+      }
+    }
+
     fetchBenchmark(false);
+    fetchEurRate();
     // Data is refreshed automatically server-side once a day (GitHub Actions -> D1).
-    const interval = setInterval(() => fetchBenchmark(true), 15 * 60 * 1000);
+    const interval = setInterval(() => {
+      fetchBenchmark(true);
+      fetchEurRate();
+    }, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  return { benchmark, isLoading, error };
+  return { benchmark, eurRate, isLoading, error };
 }
