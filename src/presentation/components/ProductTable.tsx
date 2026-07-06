@@ -103,6 +103,14 @@ const getProviderPill = (providerName: string) => {
     return 'bg-[#581C87]/30 text-[#C084FC] border border-[#581C87]/50';
   } else if (normalized.includes('neogold')) {
     return 'bg-[#7C2D12]/30 text-[#FB923C] border border-[#7C2D12]/50';
+  } else if (normalized.includes('teilor')) {
+    return 'bg-[#155E75]/30 text-[#22D3EE] border border-[#155E75]/50';
+  } else if (normalized.includes('goldbars')) {
+    return 'bg-[#3F6212]/30 text-[#A3E635] border border-[#3F6212]/50';
+  } else if (normalized.includes('stonex')) {
+    return 'bg-[#831843]/30 text-[#F472B6] border border-[#831843]/50';
+  } else if (normalized.includes('celticgold')) {
+    return 'bg-[#134E4A]/30 text-[#2DD4BF] border border-[#134E4A]/50';
   }
   return 'bg-[#27272A] text-[#A1A1AA] border border-[#3F3F46]';
 };

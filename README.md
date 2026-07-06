@@ -1,4 +1,4 @@
-# AUROM
+# SORTAUR
 
 Precious metals (gold, silver, platinum) price aggregator for the Romanian market. Compares physical bullion prices across major local dealers (Tavex, Aurom, Avangard, BCR, Neogold) against the National Bank of Romania (BNR) gold benchmark, ranked by markup ("Adaos"). Updated once daily, not real-time — see below.
 

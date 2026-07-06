@@ -44,7 +44,7 @@ jobs:
 
       - run: npm run build
         env:
-          VITE_API_BASE_URL: https://aurom.contact-youos.workers.dev
+          VITE_API_BASE_URL: https://sortaur.contact-youos.workers.dev
 
       - uses: actions/configure-pages@v5
 

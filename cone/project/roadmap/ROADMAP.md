@@ -19,7 +19,7 @@ This roadmap lists the current status, milestones achieved, and upcoming tasks f
 ## 🚀 Milestones Achieved
 
 - [x] **Hexagonal Architecture Foundations**: Core business, domain logic, and scrapers completely decoupled from Express and React UI.
-- [x] **Provider Scrapers**: Fully integrated scrapers for Aurom, Avangard, Neogold, Tavex, and BCR.
+- [x] **Provider Scrapers**: Fully integrated scrapers for Aurom Investment, Avangard, Neogold, Tavex, BCR, Teilor, and Goldbars.ro (all RON-native), plus Münze Österreich, StoneX Bullion, and CelticGold (EUR/multi-currency, converted via BNR rates). BullionVault evaluated and excluded (trading exchange, no fixed-price catalog); BullionByPost evaluated and excluded (blocks Node's `fetch` at the TLS-fingerprint level — see session 0017).
 - [x] **Centralized Normalization**: Implemented `PurityEstimator` and `WeightConverter` for exact fine weight pricing.
 - [x] **Interactive Dashboard**: Styled UI showcasing real-time BNR gold pricing benchmark, product tables, filtering by metal, and sorting by "Adaos" (markup percentage).
 - [x] **cone-lite Integration**: Migrated and structured all system documentation into the Two-Pillar framework (`cone/agent/` and `cone/project/`).

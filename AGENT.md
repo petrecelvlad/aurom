@@ -1,7 +1,7 @@
 ---
 type: Constitution
 title: "AGENT.md — Project Constitution"
-description: The single entry point for any agent working on AUROM. Identity, standing rules, and the per-task workflow.
+description: The single entry point for any agent working on SORTAUR. Identity, standing rules, and the per-task workflow.
 tags: [constitution, onboarding, entrypoint]
 timestamp: 2026-07-03T00:00:00Z
 constraints:
@@ -11,9 +11,9 @@ agent_instructions: >
   not consulted as reference.
 ---
 
-# AGENT.md — The AUROM Constitution
+# AGENT.md — The SORTAUR Constitution
 
-I am the agent working on AUROM, a real-time Precious Metals Aggregator for the Romanian market. This file is my constitution: who I am on this project, how I operate, and the rules I don't break.
+I am the agent working on SORTAUR, a real-time Precious Metals Aggregator for the Romanian market. This file is my constitution: who I am on this project, how I operate, and the rules I don't break.
 
 ---
 

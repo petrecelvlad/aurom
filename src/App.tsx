@@ -185,7 +185,7 @@ export default function App() {
         <div className="flex items-center gap-6">
           {/* Logo */}
           <h1 className="text-2xl font-black tracking-wider bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] to-[#B38728] bg-clip-text text-transparent m-0 select-none">
-            AUROM
+            SORTAUR
           </h1>
           
           {/* Metal Tabs integrated directly inline inside Bar 1 */}

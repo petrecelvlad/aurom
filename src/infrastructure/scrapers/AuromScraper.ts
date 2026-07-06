@@ -29,9 +29,10 @@ export class AuromScraper implements IScraperStrategy {
 
     const uniqueProducts = new Map<string, StandardizedProduct>();
     
-    // We will scrape the first 10 pages of the shop to list standard investment items.
-    // If we hit a page with 0 products or a 404, we stop.
-    for (let page = 1; page <= 10; page++) {
+    // The catalog has outgrown a fixed page count before (was capped at 10 while the
+    // real shop ran to ~18 pages, silently dropping everything past it — e.g. the 20g
+    // Valcambi bar). Cap high and rely on the 404/empty-page checks below to stop for real.
+    for (let page = 1; page <= 30; page++) {
       const url = page === 1
         ? 'https://aurominvestment.ro/shop/'
         : `https://aurominvestment.ro/shop/page/${page}/`;
